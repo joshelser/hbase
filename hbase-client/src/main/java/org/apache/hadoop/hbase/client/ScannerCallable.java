@@ -60,7 +60,7 @@ import com.google.protobuf.TextFormat;
  * {@link RpcRetryingCaller} so fails are retried.
  */
 @InterfaceAudience.Private
-public class ScannerCallable extends RegionServerCallable<Result[]> {
+public class ScannerCallable extends RegionServerCallable<ScanResultWithContext> {
   public static final String LOG_SCANNER_LATENCY_CUTOFF
     = "hbase.client.log.scanner.latency.cutoff";
   public static final String LOG_SCANNER_ACTIVITY = "hbase.client.log.scanner.activity";
@@ -178,8 +178,7 @@ public class ScannerCallable extends RegionServerCallable<Result[]> {
 
 
   @Override
-  @SuppressWarnings("deprecation")
-  public Result [] call(int callTimeout) throws IOException {
+  public ScanResultWithContext call(int callTimeout) throws IOException {
     if (Thread.interrupted()) {
       throw new InterruptedIOException();
     }
@@ -193,6 +192,7 @@ public class ScannerCallable extends RegionServerCallable<Result[]> {
       } else {
         Result [] rrs = null;
         ScanRequest request = null;
+        ScanResultWithContext resultWithContext;
         try {
           incRPCcallsMetrics();
           request = RequestConverter.buildScanRequest(scannerId, caching, false, nextCallSeq);
@@ -224,11 +224,21 @@ public class ScannerCallable extends RegionServerCallable<Result[]> {
                   + rows + " rows from scanner=" + scannerId);
               }
             }
-            if (response.hasMoreResults()
-                && !response.getMoreResults()) {
+            // moreResults is only used for the case where a filter exhausts all elements
+            if (response.hasMoreResults() && !response.getMoreResults()) {
               scannerId = -1L;
               closed = true;
+              // Implied that no results were returned back, either.
               return null;
+            }
+            // moreResultsInRegion explicitly defines when a RS may choose to terminate a batch due
+            // to size or quantity of results in the response.
+            if (response.hasMoreResultsInRegion()) {
+              // Pass back what the RS said
+              resultWithContext = new ScanResultWithContext(rrs, response.getMoreResultsInRegion());
+            } else {
+              // Server didn't respond whether it has more results or not.
+              resultWithContext = new ScanResultWithContext(rrs);
             }
           } catch (ServiceException se) {
             throw ProtobufUtil.getRemoteException(se);
@@ -276,7 +286,7 @@ public class ScannerCallable extends RegionServerCallable<Result[]> {
             throw ioe;
           }
         }
-        return rrs;
+        return resultWithContext;
       }
     }
     return null;

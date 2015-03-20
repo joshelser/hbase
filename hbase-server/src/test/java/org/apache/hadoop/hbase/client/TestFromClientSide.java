@@ -570,6 +570,7 @@ public class TestFromClientSide {
       createScanWithRowFilter(key, null, CompareFilter.CompareOp.EQUAL));
     assertEquals(1, countBBB);
 
+    // Get all rows where the rowkey is GTE to the endKey (which is no rows)
     int countGreater = countRows(t, createScanWithRowFilter(endKey, null,
       CompareFilter.CompareOp.GREATER_OR_EQUAL));
     // Because started at start of table.

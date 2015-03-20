@@ -638,6 +638,7 @@ public class TestAssignmentManager {
 
     final ScanResponse.Builder builder = ScanResponse.newBuilder();
     builder.setMoreResults(true);
+    builder.setMoreResultsInRegion(false);
     builder.addCellsPerResult(r.size());
     final List<CellScannable> cellScannables = new ArrayList<CellScannable>(1);
     cellScannables.add(r);
@@ -1209,7 +1210,10 @@ public class TestAssignmentManager {
     // Get a meta row result that has region up on SERVERNAME_A for REGIONINFO
     Result r = MetaMockingUtil.getMetaTableRowResult(REGIONINFO, SERVERNAME_A);
     final ScanResponse.Builder builder = ScanResponse.newBuilder();
+    // Don't hit the filter limit
     builder.setMoreResults(true);
+    // We returned all the results in the first batch
+    builder.setMoreResultsInRegion(false);
     builder.addCellsPerResult(r.size());
     final List<CellScannable> rows = new ArrayList<CellScannable>(1);
     rows.add(r);
@@ -1227,10 +1231,11 @@ public class TestAssignmentManager {
     if (enabling) {
       Mockito.when(ri.scan((RpcController) Mockito.any(), (ScanRequest) Mockito.any()))
           .thenAnswer(ans).thenAnswer(ans).thenAnswer(ans).thenAnswer(ans).thenAnswer(ans)
-          .thenReturn(ScanResponse.newBuilder().setMoreResults(false).build());
+          .thenReturn(ScanResponse.newBuilder().setMoreResultsInRegion(false).build());
     } else {
-      Mockito.when(ri.scan((RpcController) Mockito.any(), (ScanRequest) Mockito.any())).thenAnswer(
-          ans);
+      Mockito.when(ri.scan((RpcController) Mockito.any(), (ScanRequest) Mockito.any()))
+          .thenAnswer(ans).thenAnswer(ans).thenAnswer(ans).thenAnswer(ans).thenAnswer(ans)
+          .thenReturn(ScanResponse.newBuilder().setMoreResultsInRegion(false).build());
     }
     // If a get, return the above result too for REGIONINFO
     GetResponse.Builder getBuilder = GetResponse.newBuilder();

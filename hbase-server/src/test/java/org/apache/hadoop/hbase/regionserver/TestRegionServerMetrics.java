@@ -167,6 +167,8 @@ public class TestRegionServerMetrics {
     // Adding some meta related requests
     requests += 3;
     readRequests ++;
+    // Extra request after observing ScanResponse.getMoreResults
+    requests++;
 
     metricsRegionServer.getRegionServerWrapper().forceRecompute();
     metricsHelper.assertCounter("totalRequestCount", requests + 50, serverSource);
