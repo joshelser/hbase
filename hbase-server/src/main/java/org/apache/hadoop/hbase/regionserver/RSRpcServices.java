@@ -25,6 +25,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -49,6 +50,7 @@ import org.apache.hadoop.hbase.HBaseIOException;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.HTableDescriptor;
+import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.MetaTableAccessor;
 import org.apache.hadoop.hbase.NotServingRegionException;
 import org.apache.hadoop.hbase.ServerName;
@@ -155,9 +157,7 @@ import org.apache.hadoop.hbase.regionserver.InternalScanner.NextState;
 import org.apache.hadoop.hbase.regionserver.Leases.LeaseStillHeldException;
 import org.apache.hadoop.hbase.regionserver.handler.OpenMetaHandler;
 import org.apache.hadoop.hbase.regionserver.handler.OpenRegionHandler;
-import org.apache.hadoop.hbase.wal.WAL;
 import org.apache.hadoop.hbase.regionserver.wal.WALEdit;
-import org.apache.hadoop.hbase.util.ByteStringer;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.Counter;
 import org.apache.hadoop.hbase.util.EnvironmentEdgeManager;
@@ -2131,8 +2131,10 @@ public class RSRpcServices implements HBaseRPCErrorHandler,
           }
 
           if (!done) {
+            // Ultimately the maxResultSize from the client (or -1 if unset)
             long maxResultSize = scanner.getMaxResultSize();
             if (maxResultSize <= 0) {
+              // Client provided no limit, use the server's limit
               maxResultSize = maxScannerResultSize;
             }
             List<Cell> values = new ArrayList<Cell>();
@@ -2177,9 +2179,29 @@ public class RSRpcServices implements HBaseRPCErrorHandler,
                     // The state should always contain an estimate of the result size because that
                     // estimate must be used to decide when partial results are formed.
                     boolean skipResultSizeCalculation = state.hasResultSizeEstimate();
-                    if (skipResultSizeCalculation) currentScanResultSize += state.getResultSize();
+                    if (skipResultSizeCalculation) {
+                      LOG.info("Skipping size computation because the state has an estimate: "
+                          + state.getResultSize());
+                      currentScanResultSize += state.getResultSize();
+                    } else {
+                      LOG.info("Can't skip result size calculation as it wasn't provided in the state");
+                    }
 
                     for (Cell cell : values) {
+                      if (cell instanceof KeyValue) {
+                        KeyValue kv = (KeyValue) cell;
+                        LOG.info(cell + ", Estimated heap size=" + CellUtil.estimatedHeapSizeOf(kv)
+                            + ", KeyValue length=" + kv.getLength());
+                        byte[] arr = new byte[kv.getLength()];
+                        System.arraycopy(cell.getValueArray(), kv.getOffset(), arr,
+                            0, kv.getLength());
+                        LOG.info("ValueBytes=" + Arrays.toString(arr));
+                        LOG.info("KeyLength=" + kv.getKeyLength() + ", TagsLength="
+                            + kv.getTagsLength() + ", RowLength=" + kv.getRowLength()
+                            + ", FamilyLength=" + kv.getFamilyLength() + ", QualiferLength="
+                            + kv.getQualifierLength() + ", heapSize=" + kv.heapSize());
+                      }
+
                       totalCellSize += CellUtil.estimatedSerializedSizeOf(cell);
 
                       // If the calculation can't be skipped, then do it now.
