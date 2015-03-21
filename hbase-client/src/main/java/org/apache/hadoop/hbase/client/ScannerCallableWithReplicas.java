@@ -59,7 +59,7 @@ import com.google.common.annotations.VisibleForTesting;
  *
  */
 @InterfaceAudience.Private
-class ScannerCallableWithReplicas implements RetryingCallable<Result[]> {
+class ScannerCallableWithReplicas implements RetryingCallable<ScanResultWithContext> {
   private final Log LOG = LogFactory.getLog(this.getClass());
   volatile ScannerCallable currentScannerCallable;
   AtomicBoolean replicaSwitched = new AtomicBoolean(false);
@@ -69,7 +69,7 @@ class ScannerCallableWithReplicas implements RetryingCallable<Result[]> {
   private final Scan scan;
   private final int retries;
   private Result lastResult;
-  private final RpcRetryingCaller<Result[]> caller;
+  private final RpcRetryingCaller<ScanResultWithContext> caller;
   private final TableName tableName;
   private Configuration conf;
   private int scannerTimeout;
@@ -79,7 +79,7 @@ class ScannerCallableWithReplicas implements RetryingCallable<Result[]> {
   public ScannerCallableWithReplicas(TableName tableName, ClusterConnection cConnection,
       ScannerCallable baseCallable, ExecutorService pool, int timeBeforeReplicas, Scan scan,
       int retries, int scannerTimeout, int caching, Configuration conf,
-      RpcRetryingCaller<Result []> caller) {
+      RpcRetryingCaller<ScanResultWithContext> caller) {
     this.currentScannerCallable = baseCallable;
     this.cConnection = cConnection;
     this.pool = pool;
@@ -112,7 +112,7 @@ class ScannerCallableWithReplicas implements RetryingCallable<Result[]> {
   }
 
   @Override
-  public Result [] call(int timeout) throws IOException {
+  public ScanResultWithContext call(int timeout) throws IOException {
     // If the active replica callable was closed somewhere, invoke the RPC to
     // really close it. In the case of regular scanners, this applies. We make couple
     // of RPCs to a RegionServer, and when that region is exhausted, we set
@@ -123,7 +123,7 @@ class ScannerCallableWithReplicas implements RetryingCallable<Result[]> {
       if (LOG.isTraceEnabled()) {
         LOG.trace("Closing scanner id=" + currentScannerCallable.scannerId);
       }
-      Result[] r = currentScannerCallable.call(timeout);
+      ScanResultWithContext r = currentScannerCallable.call(timeout);
       currentScannerCallable = null;
       return r;
     }
@@ -140,8 +140,8 @@ class ScannerCallableWithReplicas implements RetryingCallable<Result[]> {
 
     // allocate a boundedcompletion pool of some multiple of number of replicas.
     // We want to accomodate some RPCs for redundant replica scans (but are still in progress)
-    ResultBoundedCompletionService<Pair<Result[], ScannerCallable>> cs =
-        new ResultBoundedCompletionService<Pair<Result[], ScannerCallable>>(
+    ResultBoundedCompletionService<Pair<ScanResultWithContext, ScannerCallable>> cs =
+        new ResultBoundedCompletionService<Pair<ScanResultWithContext, ScannerCallable>>(
             new RpcRetryingCallerFactory(ScannerCallableWithReplicas.this.conf), pool,
             rl.size() * 5);
 
@@ -153,10 +153,10 @@ class ScannerCallableWithReplicas implements RetryingCallable<Result[]> {
     submitted += addCallsForCurrentReplica(cs, rl);
     try {
       // wait for the timeout to see whether the primary responds back
-      Future<Pair<Result[], ScannerCallable>> f = cs.poll(timeBeforeReplicas,
+      Future<Pair<ScanResultWithContext, ScannerCallable>> f = cs.poll(timeBeforeReplicas,
           TimeUnit.MICROSECONDS); // Yes, microseconds
       if (f != null) {
-        Pair<Result[], ScannerCallable> r = f.get();
+        Pair<ScanResultWithContext, ScannerCallable> r = f.get();
         if (r != null && r.getSecond() != null) {
           updateCurrentlyServingReplica(r.getSecond(), r.getFirst(), done, pool);
         }
@@ -179,8 +179,8 @@ class ScannerCallableWithReplicas implements RetryingCallable<Result[]> {
     try {
       while (completed < submitted) {
         try {
-          Future<Pair<Result[], ScannerCallable>> f = cs.take();
-          Pair<Result[], ScannerCallable> r = f.get();
+          Future<Pair<ScanResultWithContext, ScannerCallable>> f = cs.take();
+          Pair<ScanResultWithContext, ScannerCallable> r = f.get();
           if (r != null && r.getSecond() != null) {
             updateCurrentlyServingReplica(r.getSecond(), r.getFirst(), done, pool);
           }
@@ -210,8 +210,9 @@ class ScannerCallableWithReplicas implements RetryingCallable<Result[]> {
     return null; // unreachable
   }
 
-  private void updateCurrentlyServingReplica(ScannerCallable scanner, Result[] result,
+  private void updateCurrentlyServingReplica(ScannerCallable scanner, ScanResultWithContext resultWithContext,
       AtomicBoolean done, ExecutorService pool) {
+    Result[] result = (null != resultWithContext ? resultWithContext.getResults() : null);
     if (done.compareAndSet(false, true)) {
       if (currentScannerCallable != scanner) replicaSwitched.set(true);
       currentScannerCallable = scanner;
@@ -258,7 +259,7 @@ class ScannerCallableWithReplicas implements RetryingCallable<Result[]> {
   }
 
   private int addCallsForCurrentReplica(
-      ResultBoundedCompletionService<Pair<Result[], ScannerCallable>> cs, RegionLocations rl) {
+      ResultBoundedCompletionService<Pair<ScanResultWithContext, ScannerCallable>> cs, RegionLocations rl) {
     RetryingRPC retryingOnReplica = new RetryingRPC(currentScannerCallable);
     outstandingCallables.add(currentScannerCallable);
     cs.submit(retryingOnReplica, scannerTimeout, currentScannerCallable.id);
@@ -266,7 +267,7 @@ class ScannerCallableWithReplicas implements RetryingCallable<Result[]> {
   }
 
   private int addCallsForOtherReplicas(
-      ResultBoundedCompletionService<Pair<Result[], ScannerCallable>> cs, RegionLocations rl,
+      ResultBoundedCompletionService<Pair<ScanResultWithContext, ScannerCallable>> cs, RegionLocations rl,
       int min, int max) {
     if (scan.getConsistency() == Consistency.STRONG) {
       return 0; // not scheduling on other replicas for strong consistency
@@ -296,9 +297,9 @@ class ScannerCallableWithReplicas implements RetryingCallable<Result[]> {
     return someRPCcancelled;
   }
 
-  class RetryingRPC implements RetryingCallable<Pair<Result[], ScannerCallable>>, Cancellable {
+  class RetryingRPC implements RetryingCallable<Pair<ScanResultWithContext, ScannerCallable>>, Cancellable {
     final ScannerCallable callable;
-    RpcRetryingCaller<Result[]> caller;
+    RpcRetryingCaller<ScanResultWithContext> caller;
     private volatile boolean cancelled = false;
 
     RetryingRPC(ScannerCallable callable) {
@@ -311,19 +312,19 @@ class ScannerCallableWithReplicas implements RetryingCallable<Result[]> {
       this.caller = ScannerCallableWithReplicas.this.caller;
       if (scan.getConsistency() == Consistency.TIMELINE) {
         this.caller = new RpcRetryingCallerFactory(ScannerCallableWithReplicas.this.conf).
-            <Result[]>newCaller();
+            <ScanResultWithContext>newCaller();
       }
     }
 
     @Override
-    public Pair<Result[], ScannerCallable> call(int callTimeout) throws IOException {
+    public Pair<ScanResultWithContext, ScannerCallable> call(int callTimeout) throws IOException {
       // since the retries is done within the ResultBoundedCompletionService,
       // we don't invoke callWithRetries here
       if (cancelled) {
         return null;
       }
-      Result[] res = this.caller.callWithoutRetries(this.callable, callTimeout);
-      return new Pair<Result[], ScannerCallable>(res, this.callable);
+      ScanResultWithContext results = this.caller.callWithoutRetries(this.callable, callTimeout);
+      return new Pair<ScanResultWithContext, ScannerCallable>(results, this.callable);
     }
 
     @Override

@@ -87,7 +87,7 @@ public class ClientScanner extends AbstractClientScanner {
     private final TableName tableName;
     protected final int scannerTimeout;
     protected boolean scanMetricsPublished = false;
-    protected RpcRetryingCaller<Result []> caller;
+    protected RpcRetryingCaller<ScanResultWithContext> caller;
     protected RpcControllerFactory rpcControllerFactory;
     protected Configuration conf;
     //The timeout on the primary. Applicable if there are multiple replicas for a region
@@ -148,7 +148,7 @@ public class ClientScanner extends AbstractClientScanner {
             HConstants.DEFAULT_HBASE_CLIENT_SCANNER_CACHING);
       }
 
-      this.caller = rpcFactory.<Result[]> newCaller();
+      this.caller = rpcFactory.<ScanResultWithContext> newCaller();
       this.rpcControllerFactory = controllerFactory;
 
       this.conf = conf;
@@ -302,8 +302,8 @@ public class ClientScanner extends AbstractClientScanner {
     return callable.isAnyRPCcancelled();
   }
 
-  static Result[] call(ScannerCallableWithReplicas callable,
-      RpcRetryingCaller<Result[]> caller, int scannerTimeout)
+  static ScanResultWithContext call(ScannerCallableWithReplicas callable,
+      RpcRetryingCaller<ScanResultWithContext> caller, int scannerTimeout)
       throws IOException, RuntimeException {
     if (Thread.interrupted()) {
       throw new InterruptedIOException();
@@ -354,7 +354,7 @@ public class ClientScanner extends AbstractClientScanner {
         return null;
       }
       if (cache.size() == 0) {
-        Result[] values = null;
+        ScanResultWithContext values = null;
         long remainingResultSize = maxScannerResultSize;
         int countdown = this.caching;
 
@@ -364,6 +364,9 @@ public class ClientScanner extends AbstractClientScanner {
         // This flag is set when we want to skip the result returned. We do
         // this when we reset scanner because it split under us.
         boolean retryAfterOutOfOrderException = true;
+        // We don't expect that the server will have more results for us if
+        // it doesn't tell us otherwise. We rely on the size or count of results
+        boolean serverHasMoreResults = false;
         do {
           try {
             // Server returns a null values if scanning is to stop. Else,
@@ -456,7 +459,8 @@ public class ClientScanner extends AbstractClientScanner {
           // Groom the array of Results that we received back from the server before adding that
           // Results to the scanner's cache. If partial results are not allowed to be seen by the
           // caller, all book keeping will be performed within this method.
-          List<Result> resultsToAddToCache = getResultsToAddToCache(values);
+          Result[] serverResults = (null != values ? values.getResults() : null);
+          List<Result> resultsToAddToCache = getResultsToAddToCache(serverResults);
           if (!resultsToAddToCache.isEmpty()) {
             for (Result rs : resultsToAddToCache) {
               cache.add(rs);
@@ -468,11 +472,18 @@ public class ClientScanner extends AbstractClientScanner {
               this.lastResult = rs;
             }
           }
+          // We expect that the server won't have more results for us when we exhaust
+          // the size (bytes or count) of the results returned. If the server *does* inform us that
+          // there are more results, we want to avoid possiblyNextScanner(...). Only when we actually
+          // get results is the moreResults context valid.
+          if (null != values && values.getResults().length > 0 && values.getHasMoreResultsContext()) {
+            serverHasMoreResults = values.getServerHasMoreResults();
+          }
           // Values == null means server-side filter has determined we must STOP
           // !partialResults.isEmpty() means that we are still accumulating partial Results for a
           // row. We should not change scanners before we receive all the partial Results for that
           // row.
-        } while (remainingResultSize > 0 && countdown > 0
+        } while (remainingResultSize > 0 && countdown > 0 && !serverHasMoreResults
             && (!partialResults.isEmpty() || possiblyNextScanner(countdown, values == null)));
       }
 
