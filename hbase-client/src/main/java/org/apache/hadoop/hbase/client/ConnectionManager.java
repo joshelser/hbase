@@ -124,6 +124,8 @@ import org.apache.hadoop.hbase.protobuf.generated.MasterProtos.GetTableNamesRequ
 import org.apache.hadoop.hbase.protobuf.generated.MasterProtos.GetTableNamesResponse;
 import org.apache.hadoop.hbase.protobuf.generated.MasterProtos.GetTableStateRequest;
 import org.apache.hadoop.hbase.protobuf.generated.MasterProtos.GetTableStateResponse;
+import org.apache.hadoop.hbase.protobuf.generated.MasterProtos.IsBalancerEnabledRequest;
+import org.apache.hadoop.hbase.protobuf.generated.MasterProtos.IsBalancerEnabledResponse;
 import org.apache.hadoop.hbase.protobuf.generated.MasterProtos.IsCatalogJanitorEnabledRequest;
 import org.apache.hadoop.hbase.protobuf.generated.MasterProtos.IsCatalogJanitorEnabledResponse;
 import org.apache.hadoop.hbase.protobuf.generated.MasterProtos.IsMasterRunningRequest;
@@ -1985,6 +1987,12 @@ final class ConnectionManager {
             RpcController controller, MajorCompactionTimestampForRegionRequest request)
             throws ServiceException {
           return stub.getLastMajorCompactionTimestampForRegion(controller, request);
+        }
+
+        @Override
+        public IsBalancerEnabledResponse isBalancerEnabled(RpcController controller,
+            IsBalancerEnabledRequest request) throws ServiceException {
+          return stub.isBalancerEnabled(controller, request);
         }
       };
     }
