@@ -522,6 +522,7 @@ public class MasterQuotaManager implements RegionStateListener {
 
   public void addRegionSize(HRegionInfo hri, long size) {
     // TODO Make proper API
+    // TODO Prevent from growing indefinitely
     regionSizes.put(hri, size);
   }
 
