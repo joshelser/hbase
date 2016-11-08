@@ -131,6 +131,9 @@ import org.apache.hadoop.hbase.procedure2.ProcedureEvent;
 import org.apache.hadoop.hbase.procedure2.ProcedureExecutor;
 import org.apache.hadoop.hbase.procedure2.store.wal.WALProcedureStore;
 import org.apache.hadoop.hbase.quotas.MasterQuotaManager;
+import org.apache.hadoop.hbase.quotas.QuotaObserverChore;
+import org.apache.hadoop.hbase.quotas.SpaceQuotaViolationNotifier;
+import org.apache.hadoop.hbase.quotas.SpaceQuotaViolationNotifierForTest;
 import org.apache.hadoop.hbase.regionserver.DefaultStoreEngine;
 import org.apache.hadoop.hbase.regionserver.HRegionServer;
 import org.apache.hadoop.hbase.regionserver.HStore;
@@ -366,6 +369,8 @@ public class HMaster extends HRegionServer implements MasterServices {
 
   // it is assigned after 'initialized' guard set to true, so should be volatile
   private volatile MasterQuotaManager quotaManager;
+  private SpaceQuotaViolationNotifier spaceQuotaViolationNotifier;
+  private QuotaObserverChore quotaObserverChore;
 
   private ProcedureExecutor<MasterProcedureEnv> procedureExecutor;
   private WALProcedureStore procedureStore;
@@ -858,6 +863,10 @@ public class HMaster extends HRegionServer implements MasterServices {
 
     status.setStatus("Starting quota manager");
     initQuotaManager();
+    this.spaceQuotaViolationNotifier = createQuotaViolationNotifier();
+    this.quotaObserverChore = new QuotaObserverChore(this);
+    // Start the chore to read the region FS space reports and act on them
+    getChoreService().scheduleChore(quotaObserverChore);
 
     // clear the dead servers with same host name and port of online server because we are not
     // removing dead server with same hostname and port of rs which is trying to check in before
@@ -943,6 +952,10 @@ public class HMaster extends HRegionServer implements MasterServices {
     this.assignmentManager.setRegionStateListener((RegionStateListener)quotaManager);
     quotaManager.start();
     this.quotaManager = quotaManager;
+  }
+
+  SpaceQuotaViolationNotifier createQuotaViolationNotifier() {
+    return new SpaceQuotaViolationNotifierForTest();
   }
 
   boolean isCatalogJanitorEnabled() {
@@ -1141,6 +1154,9 @@ public class HMaster extends HRegionServer implements MasterServices {
 
     if (this.periodicDoMetricsChore != null) {
       periodicDoMetricsChore.cancel();
+    }
+    if (this.quotaObserverChore != null) {
+      quotaObserverChore.cancel();
     }
   }
 
@@ -3288,5 +3304,13 @@ public class HMaster extends HRegionServer implements MasterServices {
       LOG.warn(
         this.zooKeeper.prefix("Unable to remove drain for '" + server.getServerName() + "'."), ke);
     }
+  }
+
+  public QuotaObserverChore getQuotaObserverChore() {
+    return this.quotaObserverChore;
+  }
+
+  public SpaceQuotaViolationNotifier getSpaceQuotaViolationNotifier() {
+    return this.spaceQuotaViolationNotifier;
   }
 }
