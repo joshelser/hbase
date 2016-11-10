@@ -192,6 +192,14 @@ public class QuotaTableUtil {
       }
 
       filterList.addFilter(userFilters);
+    } else if (!Strings.isEmpty(filter.getTableFilter()) && !Strings.isEmpty(filter.getNamespaceFilter())) {
+      // Support both table and namespace filtering
+      FilterList tableOrNamespaceFilter = new FilterList(FilterList.Operator.MUST_PASS_ONE);
+      tableOrNamespaceFilter.addFilter(new RowFilter(CompareFilter.CompareOp.EQUAL,
+          new RegexStringComparator(getTableRowKeyRegex(filter.getTableFilter()), 0)));
+      tableOrNamespaceFilter.addFilter(new RowFilter(CompareFilter.CompareOp.EQUAL,
+          new RegexStringComparator(getNamespaceRowKeyRegex(filter.getNamespaceFilter()), 0)));
+      filterList.addFilter(tableOrNamespaceFilter);
     } else if (!Strings.isEmpty(filter.getTableFilter())) {
       filterList.addFilter(new RowFilter(CompareFilter.CompareOp.EQUAL,
           new RegexStringComparator(getTableRowKeyRegex(filter.getTableFilter()), 0)));

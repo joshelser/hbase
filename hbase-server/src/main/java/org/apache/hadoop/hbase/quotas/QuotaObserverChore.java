@@ -16,6 +16,8 @@
  */
 package org.apache.hadoop.hbase.quotas;
 
+import java.io.IOException;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -24,6 +26,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.ScheduledChore;
 import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.master.HMaster;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.Quotas;
 
@@ -51,15 +54,25 @@ public class QuotaObserverChore extends ScheduledChore {
   }
 
   private final HMaster master;
+  private final MasterQuotaManager quotaManager;
 
   public QuotaObserverChore(HMaster master) {
     super(QuotaObserverChore.class.getSimpleName(), master, getPeriod(master.getConfiguration()),
         getInitialDelay(master.getConfiguration()), getTimeUnit(master.getConfiguration()));
     this.master = master;
+    this.quotaManager = this.master.getMasterQuotaManager();
   }
 
   @Override
   protected void chore() {
+    try {
+      _chore();
+    } catch (IOException e) {
+      LOG.warn("Failed to process quota reports and update quota violation state. Will retry.", e);
+    }
+  }
+
+  void _chore() throws IOException {
     // Get the total set of tables that have quotas defined
     Set<TableName> tablesWithQuotasDefined = fetchAllTablesWithQuotasDefined();
 
@@ -89,6 +102,53 @@ public class QuotaObserverChore extends ScheduledChore {
         }
       }
     }
+  }
+
+  /**
+   * Computes the set of all tables that have quotas defined. This includes tables with quotas
+   * explicitly set on them, in addition to tables that exist namespaces which have a quota
+   * defined.
+   */
+  Set<TableName> fetchAllTablesWithQuotasDefined() throws IOException {
+    final Scan scan = QuotaTableUtil.makeScan(null);
+    QuotaRetriever scanner = new QuotaRetriever();
+    try {
+      scanner.init(master.getConnection(), scan);
+      Set<TableName> tables = new HashSet<>();
+      for (QuotaSettings quotaSettings : scanner) {
+        // Only one of namespace and tablename should be 'null'
+        final String namespace = quotaSettings.getNamespace();
+        final TableName tableName = quotaSettings.getTableName();
+        if (QuotaType.SPACE != quotaSettings.getQuotaType()) {
+          continue;
+        }
+
+        if (null != namespace) {
+          assert null == quotaSettings.getTableName();
+          // Collect all of the tables in the namespace
+          for (TableName tn : master.getConnection().getAdmin().listTableNamesByNamespace(namespace)) {
+            tables.add(tn);
+          }
+        } else {
+          assert null != tableName;
+          // namespace is already null, must be a non-null tableName
+          tables.add(tableName);
+        }
+      }
+      return tables;
+    } finally {
+      if (null != scanner) {
+        scanner.close();
+      }
+    }
+  }
+
+  /**
+   * Filters out all tables for which the Master currently doesn't have enough region space
+   * reports received from RegionServers yet.
+   */
+  Set<TableName> filterInsufficientlyReportedTables(Set<TableName> tablesWithQuotas) {
+    return null;
   }
 
   /**
@@ -136,25 +196,6 @@ public class QuotaObserverChore extends ScheduledChore {
     // TODO
     return null;
   }
-
-  /**
-   * Computes the set of all tables that have quotas defined. This includes tables with quotas
-   * explicitly set on them, in addition to tables that exist namespaces which have a quota
-   * defined.
-   */
-  Set<TableName> fetchAllTablesWithQuotasDefined() {
-    // TODO
-    return null;
-  }
-
-  /**
-   * Filters out all tables for which the Master currently doesn't have enough region space
-   * reports received from RegionServers yet.
-   */
-  Set<TableName> filterInsufficientlyReportedTables(Set<TableName> tablesWithQuotas) {
-    return null;
-  }
-  
 
   /**
    * Extracts the period for the chore from the configuration.
