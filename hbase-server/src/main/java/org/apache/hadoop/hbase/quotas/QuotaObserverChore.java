@@ -28,9 +28,12 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.ScheduledChore;
 import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.master.HMaster;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.Quotas;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceQuota;
+import org.apache.hadoop.hbase.util.Bytes;
 
 /**
  * Reads the currently received Region filesystem-space use reports and acts on those which
@@ -86,7 +89,13 @@ public class QuotaObserverChore extends ScheduledChore {
 
     // Transition each table to/from quota violation based on the current and target state.
     for (TableName table : tablesToInspect) {
-      final Quotas quota = getQuotaForTable(table);
+      final SpaceQuota spaceQuota = getSpaceQuotaForTable(table);
+      if (null == spaceQuota) {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Unexpectedly did not find a space quota for " + table + ", maybe it was recently deleted.");
+        }
+        continue;
+      }
       final ViolationState currentState = getCurrentViolationState(table);
       final ViolationState targetState = getTargetViolationState(table);
       if (currentState == ViolationState.IN_VIOLATION) {
@@ -99,7 +108,7 @@ public class QuotaObserverChore extends ScheduledChore {
         }
       } else if (currentState == ViolationState.IN_OBSERVANCE) {
         if (targetState == ViolationState.IN_VIOLATION) {
-          transitionTableToViolation(table, getViolationPolicy(quota));
+          transitionTableToViolation(table, getViolationPolicy(spaceQuota));
         } else if (targetState == ViolationState.IN_OBSERVANCE) {
           if (LOG.isTraceEnabled()) {
             LOG.trace(table + " is in observance of quota.");
@@ -187,10 +196,19 @@ public class QuotaObserverChore extends ScheduledChore {
   }
 
   /**
-   * Fetches the Quota for the given table.
+   * Fetches the Quota for the given table. May be null.
    */
-  private Quotas getQuotaForTable(TableName table) {
-    // TODO
+  SpaceQuota getSpaceQuotaForTable(TableName table) throws IOException {
+    final Connection connection = master.getConnection();
+    Quotas quotas = QuotaTableUtil.getTableQuota(connection, table);
+    // Check for a namespace quota if a table quota doesn't exist
+    if (null == quotas || !quotas.hasSpace()) {
+      quotas = QuotaTableUtil.getNamespaceQuota(connection, Bytes.toString(table.getNamespace()));
+    }
+
+    if (null != quotas && quotas.hasSpace()) {
+      return quotas.getSpace();
+    }
     return null;
   }
 
@@ -227,7 +245,7 @@ public class QuotaObserverChore extends ScheduledChore {
   /**
    * Extracts the {@link SpaceViolationPolicy} from the serialized {@link Quotas} protobuf.
    */
-  private SpaceViolationPolicy getViolationPolicy(Quotas quota) {
+  private SpaceViolationPolicy getViolationPolicy(SpaceQuota spaceQuota) {
     // TODO
     return null;
   }

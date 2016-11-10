@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -38,6 +39,8 @@ import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.master.HMaster;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceQuota;
 import org.apache.hadoop.hbase.testclassification.MediumTests;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.AfterClass;
@@ -107,7 +110,7 @@ public class TestQuotaObserverChore {
 
   @Test
   public void testGetAllTablesWithQuotas() throws Exception {
-    final Set<TableName> tablesWithQuotas = createTablesWithSpaceQuotas();
+    final Set<TableName> tablesWithQuotas = createTablesWithSpaceQuotas().keySet();
 
     Set<TableName> actualTableNames = chore.fetchAllTablesWithQuotasDefined();
     assertEquals(tablesWithQuotas, actualTableNames);
@@ -115,7 +118,7 @@ public class TestQuotaObserverChore {
 
   @Test
   public void testRpcQuotaTablesAreFiltered() throws Exception {
-    final Set<TableName> tablesWithQuotas = createTablesWithSpaceQuotas();
+    final Set<TableName> tablesWithQuotas = createTablesWithSpaceQuotas().keySet();
 
     TableName rpcQuotaTable = createTable();
     TEST_UTIL.getAdmin().setQuota(QuotaSettingsFactory
@@ -174,39 +177,67 @@ public class TestQuotaObserverChore {
     assertEquals(10, chore.getNumReportedRegionsForQuota(tn3, regions));
   }
 
-  Set<TableName> createTablesWithSpaceQuotas() throws Exception {
+  @Test
+  public void testFetchSpaceQuota() throws Exception {
+    Map<TableName,QuotaSettings> tables = createTablesWithSpaceQuotas();
+    // All tables that were created should have a quota defined.
+    for (Entry<TableName,QuotaSettings> entry : tables.entrySet()) {
+      final TableName table = entry.getKey();
+      final QuotaSettings qs = entry.getValue();
+
+      SpaceQuota spaceQuota = chore.getSpaceQuotaForTable(table);
+      assertNotNull("Could not find space quota for " + table, spaceQuota);
+
+      assertTrue("QuotaSettings was an instance of " + qs.getClass(),
+          qs instanceof SpaceLimitSettings);
+      final SpaceLimitSettings sls = (SpaceLimitSettings) qs;
+      assertEquals(sls.getProto().getQuota(), spaceQuota);
+    }
+
+    TableName tableWithoutQuota = createTable();
+    assertNull(chore.getSpaceQuotaForTable(tableWithoutQuota));
+  }
+
+  Map<TableName, QuotaSettings> createTablesWithSpaceQuotas() throws Exception {
     final Admin admin = TEST_UTIL.getAdmin();
-    final Set<TableName> tablesWithQuotas = new HashSet<>();
+    final Map<TableName, QuotaSettings> tablesWithQuotas = new HashMap<>();
 
     final TableName tn1 = createTable();
-    tablesWithQuotas.add(tn1);
     final TableName tn2 = createTable();
-    tablesWithQuotas.add(tn2);
 
     NamespaceDescriptor nd = NamespaceDescriptor.create("ns" + COUNTER.getAndIncrement()).build();
     admin.createNamespace(nd);
     final TableName tn3 = createTableInNamespace(nd);
     final TableName tn4 = createTableInNamespace(nd);
     final TableName tn5 = createTableInNamespace(nd);
-    tablesWithQuotas.add(tn3);
-    tablesWithQuotas.add(tn4);
-    tablesWithQuotas.add(tn5);
 
     final long sizeLimit1 = 1024L * 1024L * 1024L * 1024L * 5L; // 5TB
     final SpaceViolationPolicy violationPolicy1 = SpaceViolationPolicy.NO_WRITES;
-    admin.setQuota(QuotaSettingsFactory.limitTableSpace(tn1, sizeLimit1, violationPolicy1));
+    QuotaSettings qs1 = QuotaSettingsFactory.limitTableSpace(tn1, sizeLimit1, violationPolicy1);
+    tablesWithQuotas.put(tn1, qs1);
+    admin.setQuota(qs1);
 
     final long sizeLimit2 = 1024L * 1024L * 1024L * 200L; // 200GB
     final SpaceViolationPolicy violationPolicy2 = SpaceViolationPolicy.NO_WRITES_COMPACTIONS;
-    admin.setQuota(QuotaSettingsFactory.limitTableSpace(tn2, sizeLimit2, violationPolicy2));
+    QuotaSettings qs2 = QuotaSettingsFactory.limitTableSpace(tn2, sizeLimit2, violationPolicy2);
+    tablesWithQuotas.put(tn2, qs2);
+    admin.setQuota(qs2);
 
     final long sizeLimit3 = 1024L * 1024L * 1024L * 1024L * 100L; // 100TB
     final SpaceViolationPolicy violationPolicy3 = SpaceViolationPolicy.NO_INSERTS;
-    admin.setQuota(QuotaSettingsFactory.limitNamespaceSpace(nd.getName(), sizeLimit3, violationPolicy3));
+    QuotaSettings qs3 = QuotaSettingsFactory.limitNamespaceSpace(nd.getName(), sizeLimit3, violationPolicy3);
+    tablesWithQuotas.put(tn3, qs3);
+    tablesWithQuotas.put(tn4, qs3);
+    tablesWithQuotas.put(tn5, qs3);
+    admin.setQuota(qs3);
 
     final long sizeLimit4 = 1024L * 1024L * 1024L * 5L; // 5GB
     final SpaceViolationPolicy violationPolicy4 = SpaceViolationPolicy.NO_INSERTS;
-    admin.setQuota(QuotaSettingsFactory.limitTableSpace(tn5, sizeLimit4, violationPolicy4));
+    QuotaSettings qs4 = QuotaSettingsFactory.limitTableSpace(tn5, sizeLimit4, violationPolicy4);
+    // Override the ns quota for tn5, import edge-case to catch table quota taking
+    // precedence over ns quota.
+    tablesWithQuotas.put(tn5, qs4);
+    admin.setQuota(qs4);
 
     return tablesWithQuotas;
   }
