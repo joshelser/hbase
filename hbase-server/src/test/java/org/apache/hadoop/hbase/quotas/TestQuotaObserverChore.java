@@ -18,7 +18,10 @@ package org.apache.hadoop.hbase.quotas;
 
 import static org.junit.Assert.*;
 
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -26,20 +29,14 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.CellScanner;
-import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.HColumnDescriptor;
+import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.NamespaceDescriptor;
-import org.apache.hadoop.hbase.NamespaceExistException;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Connection;
-import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.client.ResultScanner;
-import org.apache.hadoop.hbase.client.Scan;
-import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.master.HMaster;
 import org.apache.hadoop.hbase.testclassification.MediumTests;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -50,8 +47,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.TestName;
-
-import com.google.common.collect.Iterables;
 
 /**
  * Test class for {@link QuotaObserverChore}.
@@ -131,6 +126,54 @@ public class TestQuotaObserverChore {
     assertEquals(tablesWithQuotas, actualTableNames);
   }
 
+  @Test
+  public void testFilterRegions() throws Exception {
+    Map<TableName,Integer> mockReportedRegions = new HashMap<>();
+    QuotaObserverChore mockedChore = new QuotaObserverChore(master){
+      @Override
+      int getNumReportedRegionsForQuota(TableName table, Map<HRegionInfo, Long> snapshot) {
+        Integer i = mockReportedRegions.get(table);
+        if (null == i) {
+          return 0;
+        }
+        return i;
+      }
+    };
+
+    TableName tn1 = createTableWithRegions(20);
+    TableName tn2 = createTableWithRegions(20);
+    TableName tn3 = createTableWithRegions(20);
+
+    mockReportedRegions.put(tn1, 10); // 50%
+    mockReportedRegions.put(tn2, 19); // 95%
+    mockReportedRegions.put(tn3, 20); // 100%
+
+    Set<TableName> filteredTables = mockedChore.filterInsufficientlyReportedTables(mockReportedRegions.keySet());
+    assertEquals(new HashSet<>(Arrays.asList(tn2, tn3)), filteredTables);
+  }
+
+  @Test
+  public void testFilterRegionsByTable() throws Exception {
+    TableName tn1 = TableName.valueOf("foo");
+    TableName tn2 = TableName.valueOf("bar");
+    TableName tn3 = TableName.valueOf("ns", "foo");
+    Map<HRegionInfo, Long> regions = new HashMap<>();
+    assertEquals(0, chore.getNumReportedRegionsForQuota(tn1, regions));
+    for (int i = 0; i < 5; i++) {
+      regions.put(new HRegionInfo(tn1, Bytes.toBytes(i), Bytes.toBytes(i+1)), 0L);
+    }
+    for (int i = 0; i < 3; i++) {
+      regions.put(new HRegionInfo(tn2, Bytes.toBytes(i), Bytes.toBytes(i+1)), 0L);
+    }
+    for (int i = 0; i < 10; i++) {
+      regions.put(new HRegionInfo(tn3, Bytes.toBytes(i), Bytes.toBytes(i+1)), 0L);
+    }
+    assertEquals(18, regions.size());
+    assertEquals(5, chore.getNumReportedRegionsForQuota(tn1, regions));
+    assertEquals(3, chore.getNumReportedRegionsForQuota(tn2, regions));
+    assertEquals(10, chore.getNumReportedRegionsForQuota(tn3, regions));
+  }
+
   Set<TableName> createTablesWithSpaceQuotas() throws Exception {
     final Admin admin = TEST_UTIL.getAdmin();
     final Set<TableName> tablesWithQuotas = new HashSet<>();
@@ -169,6 +212,10 @@ public class TestQuotaObserverChore {
   }
 
   TableName createTable() throws Exception {
+    return createTableWithRegions(1);
+  }
+
+  TableName createTableWithRegions(int numRegions) throws Exception {
     final Admin admin = TEST_UTIL.getAdmin();
     final TableName tn = TableName.valueOf(testName.getMethodName() + COUNTER.getAndIncrement());
 
@@ -181,7 +228,11 @@ public class TestQuotaObserverChore {
     // Create the table
     HTableDescriptor tableDesc = new HTableDescriptor(tn);
     tableDesc.addFamily(new HColumnDescriptor("f1"));
-    admin.createTable(tableDesc);
+    if (numRegions == 1) {
+      admin.createTable(tableDesc);
+    } else {
+      admin.createTable(tableDesc, Bytes.toBytes("a"), Bytes.toBytes("z"), numRegions);
+    }
     return tn;
   }
 

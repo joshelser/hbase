@@ -18,12 +18,14 @@ package org.apache.hadoop.hbase.quotas;
 
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.ScheduledChore;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Scan;
@@ -44,6 +46,9 @@ public class QuotaObserverChore extends ScheduledChore {
 
   static final String VIOLATION_OBSERVER_CHORE_TIMEUNIT_KEY = "hbase.master.quotas.violation.observer.chore.timeunit";
   static final String VIOLATION_OBSERVER_CHORE_TIMEUNIT_DEFAULT = TimeUnit.MILLISECONDS.name();
+
+  static final String VIOLATION_OBSERVER_CHORE_REPORT_PERCENT_KEY = "hbase.master.quotas.violation.observer.report.percent";
+  static final double VIOLATION_OBSERVER_CHORE_REPORT_PERCENT_DEFAULT= 0.95;
 
   /**
    * The current state of a table w.r.t. the policy set forth by a quota.
@@ -147,8 +152,38 @@ public class QuotaObserverChore extends ScheduledChore {
    * Filters out all tables for which the Master currently doesn't have enough region space
    * reports received from RegionServers yet.
    */
-  Set<TableName> filterInsufficientlyReportedTables(Set<TableName> tablesWithQuotas) {
-    return null;
+  Set<TableName> filterInsufficientlyReportedTables(Set<TableName> tablesWithQuotas) throws IOException {
+    final double percentRegionsReportedThreshold = getRegionReportPercent(master.getConfiguration());
+    final Map<HRegionInfo,Long> reportedRegionSpaceUse = quotaManager.snapshotRegionSizes();
+    Set<TableName> filteredTables = new HashSet<>();
+    for (TableName table : tablesWithQuotas) {
+      final int numRegionsInTable = getNumRegions(table);
+      final int reportedRegionsInQuota = getNumReportedRegionsForQuota(table, reportedRegionSpaceUse);
+      final double ratioReported = ((double) reportedRegionsInQuota) / numRegionsInTable;
+      if (ratioReported >= percentRegionsReportedThreshold) {
+        if (LOG.isTraceEnabled()) {
+          LOG.trace("Retaining " + table + " because " + reportedRegionsInQuota  + " of " +  numRegionsInTable + " were reported.");
+        }
+        filteredTables.add(table);
+      } else if (LOG.isTraceEnabled()) {
+        LOG.trace("Fitlering " + table + " because " + reportedRegionsInQuota  + " of " +  numRegionsInTable + " were reported.");
+      }
+    }
+    return filteredTables;
+  }
+
+  int getNumRegions(TableName table) throws IOException {
+    return master.getConnection().getAdmin().getTableRegions(table).size();
+  }
+
+  int getNumReportedRegionsForQuota(TableName table, Map<HRegionInfo, Long> snapshot) {
+    int sum = 0;
+    for (HRegionInfo regionInfo : snapshot.keySet()) {
+      if (table.equals(regionInfo.getTable())) {
+        sum++;
+      }
+    }
+    return sum;
   }
 
   /**
@@ -227,5 +262,17 @@ public class QuotaObserverChore extends ScheduledChore {
   static TimeUnit getTimeUnit(Configuration conf) {
     return TimeUnit.valueOf(conf.get(VIOLATION_OBSERVER_CHORE_TIMEUNIT_KEY,
         VIOLATION_OBSERVER_CHORE_TIMEUNIT_DEFAULT));
+  }
+
+  /**
+   * Extracts the percent of Regions for a table to have been reported to enable quota violation
+   * state change.
+   *
+   * @param conf The configuration object.
+   * @return The percent of regions reported to use.
+   */
+  static Double getRegionReportPercent(Configuration conf) {
+    return conf.getDouble(VIOLATION_OBSERVER_CHORE_REPORT_PERCENT_KEY,
+        VIOLATION_OBSERVER_CHORE_REPORT_PERCENT_DEFAULT);
   }
 }
