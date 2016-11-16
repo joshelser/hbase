@@ -17,142 +17,55 @@
 package org.apache.hadoop.hbase.quotas;
 
 import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
+import static com.google.common.collect.Iterables.size;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.HBaseTestingUtility;
-import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HRegionInfo;
-import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.NamespaceDescriptor;
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.Admin;
-import org.apache.hadoop.hbase.client.Connection;
-import org.apache.hadoop.hbase.master.HMaster;
-import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos;
+import org.apache.hadoop.hbase.quotas.QuotaObserverChore.ViolationState;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.Quotas;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceQuota;
-import org.apache.hadoop.hbase.testclassification.MediumTests;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceViolationPolicy;
+import org.apache.hadoop.hbase.testclassification.SmallTests;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-import org.junit.rules.TestName;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 /**
- * Test class for {@link QuotaObserverChore}.
+ * Non-HBase cluster unit tests for {@link QuotaObserverChore}.
  */
-@Category(MediumTests.class)
+@Category(SmallTests.class)
 public class TestQuotaObserverChore {
-  private static final Log LOG = LogFactory.getLog(TestQuotaObserverChore.class);
-  private static final HBaseTestingUtility TEST_UTIL = new HBaseTestingUtility();
-  private static final AtomicLong COUNTER = new AtomicLong(0);
-
-  @Rule
-  public TestName testName = new TestName();
-
-  private HMaster master;
+  private static final long ONE_MEGABYTE = 1024L * 1024L;
   private QuotaObserverChore chore;
 
-  @BeforeClass
-  public static void setUp() throws Exception {
-    Configuration conf = TEST_UTIL.getConfiguration();
-    conf.setBoolean(QuotaUtil.QUOTA_CONF_KEY, true);
-    TEST_UTIL.startMiniCluster(1);
-  }
-
-  @AfterClass
-  public static void tearDown() throws Exception {
-    TEST_UTIL.shutdownMiniCluster();
-  }
-
+  @SuppressWarnings("unchecked")
   @Before
-  public void removeAllQuotas() throws Exception {
-    final Connection conn = TEST_UTIL.getConnection();
-    // Wait for the quota table to be created
-    if (!conn.getAdmin().tableExists(QuotaUtil.QUOTA_TABLE_NAME)) {
-      do {
-        LOG.debug("Quota table does not yet exist");
-        Thread.sleep(1000);
-      } while (!conn.getAdmin().tableExists(QuotaUtil.QUOTA_TABLE_NAME));
-    } else {
-      // Or, clean up any quotas from previous test runs.
-      QuotaRetriever scanner = QuotaRetriever.open(TEST_UTIL.getConfiguration());
-      for (QuotaSettings quotaSettings : scanner) {
-        final String namespace = quotaSettings.getNamespace();
-        final TableName tableName = quotaSettings.getTableName();
-        if (null != namespace) {
-          LOG.debug("Deleting quota for namespace: " + namespace);
-          QuotaUtil.deleteNamespaceQuota(conn, namespace);
-        } else {
-          assert null != tableName;
-          LOG.debug("Deleting quota for table: "+ tableName);
-          QuotaUtil.deleteTableQuota(conn, tableName);
-        }
-      }
-    }
-
-    master = TEST_UTIL.getMiniHBaseCluster().getMaster();
-    chore = new QuotaObserverChore(master);
-  }
-
-  @Test
-  public void testGetAllTablesWithQuotas() throws Exception {
-    final Set<TableName> tablesWithQuotas = createTablesWithSpaceQuotas().keySet();
-
-    Set<TableName> actualTableNames = chore.fetchAllTablesWithQuotasDefined();
-    assertEquals(tablesWithQuotas, actualTableNames);
-  }
-
-  @Test
-  public void testRpcQuotaTablesAreFiltered() throws Exception {
-    final Set<TableName> tablesWithQuotas = createTablesWithSpaceQuotas().keySet();
-
-    TableName rpcQuotaTable = createTable();
-    TEST_UTIL.getAdmin().setQuota(QuotaSettingsFactory
-      .throttleTable(rpcQuotaTable, ThrottleType.READ_NUMBER, 6, TimeUnit.MINUTES));
-
-    // The `rpcQuotaTable` should not be included in this Set
-    Set<TableName> actualTableNames = chore.fetchAllTablesWithQuotasDefined();
-    assertEquals(tablesWithQuotas, actualTableNames);
-  }
-
-  @Test
-  public void testFilterRegions() throws Exception {
-    Map<TableName,Integer> mockReportedRegions = new HashMap<>();
-    QuotaObserverChore mockedChore = new QuotaObserverChore(master){
-      @Override
-      int getNumReportedRegionsForQuota(TableName table, Map<HRegionInfo, Long> snapshot) {
-        Integer i = mockReportedRegions.get(table);
-        if (null == i) {
-          return 0;
-        }
-        return i;
-      }
-    };
-
-    TableName tn1 = createTableWithRegions(20);
-    TableName tn2 = createTableWithRegions(20);
-    TableName tn3 = createTableWithRegions(20);
-
-    mockReportedRegions.put(tn1, 10); // 50%
-    mockReportedRegions.put(tn2, 19); // 95%
-    mockReportedRegions.put(tn3, 20); // 100%
-
-    Set<TableName> filteredTables = mockedChore.filterInsufficientlyReportedTables(mockReportedRegions.keySet());
-    assertEquals(new HashSet<>(Arrays.asList(tn2, tn3)), filteredTables);
+  public void setup() throws Exception {
+    chore = mock(QuotaObserverChore.class);
+    // Set up some rules to call the real method on the mock.
+    when(chore.getTargetViolationState(any(TableName.class), any(SpaceQuota.class),
+        any(Map.class))).thenCallRealMethod();
+    when(chore.filterByTable(any(Map.class), any(TableName.class))).thenCallRealMethod();
+    when(chore.numRegionsForTable(any(Map.class), any(TableName.class))).thenCallRealMethod();
+    when(chore.getSpaceQuotaForTable(any(TableName.class))).thenCallRealMethod();
+    when(chore.getSpaceQuotaForNamespace(any(String.class))).thenCallRealMethod();
+    when(chore.buildNamespaceSpaceUtilization(any(Set.class), any(Map.class)))
+        .thenCallRealMethod();
   }
 
   @Test
@@ -161,7 +74,7 @@ public class TestQuotaObserverChore {
     TableName tn2 = TableName.valueOf("bar");
     TableName tn3 = TableName.valueOf("ns", "foo");
     Map<HRegionInfo, Long> regions = new HashMap<>();
-    assertEquals(0, chore.getNumReportedRegionsForQuota(tn1, regions));
+    assertEquals(0, size(chore.filterByTable(regions, tn1)));
     for (int i = 0; i < 5; i++) {
       regions.put(new HRegionInfo(tn1, Bytes.toBytes(i), Bytes.toBytes(i+1)), 0L);
     }
@@ -172,118 +85,226 @@ public class TestQuotaObserverChore {
       regions.put(new HRegionInfo(tn3, Bytes.toBytes(i), Bytes.toBytes(i+1)), 0L);
     }
     assertEquals(18, regions.size());
-    assertEquals(5, chore.getNumReportedRegionsForQuota(tn1, regions));
-    assertEquals(3, chore.getNumReportedRegionsForQuota(tn2, regions));
-    assertEquals(10, chore.getNumReportedRegionsForQuota(tn3, regions));
+    assertEquals(5, size(chore.filterByTable(regions, tn1)));
+    assertEquals(3, size(chore.filterByTable(regions, tn2)));
+    assertEquals(10, size(chore.filterByTable(regions, tn3)));
   }
 
   @Test
-  public void testFetchSpaceQuota() throws Exception {
-    Map<TableName,QuotaSettings> tables = createTablesWithSpaceQuotas();
-    // All tables that were created should have a quota defined.
-    for (Entry<TableName,QuotaSettings> entry : tables.entrySet()) {
-      final TableName table = entry.getKey();
-      final QuotaSettings qs = entry.getValue();
+  public void testTargetViolationState() {
+    TableName tn1 = TableName.valueOf("violation1");
+    TableName tn2 = TableName.valueOf("observance1");
+    TableName tn3 = TableName.valueOf("observance2");
+    SpaceQuota quota = SpaceQuota.newBuilder()
+        .setSoftLimit(1024L * 1024L)
+        .setViolationPolicy(SpaceViolationPolicy.DISABLE)
+        .build();
 
-      SpaceQuota spaceQuota = chore.getSpaceQuotaForTable(table);
-      assertNotNull("Could not find space quota for " + table, spaceQuota);
-
-      assertTrue("QuotaSettings was an instance of " + qs.getClass(),
-          qs instanceof SpaceLimitSettings);
-      final SpaceLimitSettings sls = (SpaceLimitSettings) qs;
-      assertEquals(sls.getProto().getQuota(), spaceQuota);
+    Map<HRegionInfo,Long> regionReports = new HashMap<>();
+    // Create some junk data to filter. Makes sure it's so large that it would
+    // immediately violate the quota.
+    for (int i = 0; i < 3; i++) {
+      regionReports.put(new HRegionInfo(tn2, Bytes.toBytes(i), Bytes.toBytes(i + 1)),
+          5L * ONE_MEGABYTE);
+      regionReports.put(new HRegionInfo(tn3, Bytes.toBytes(i), Bytes.toBytes(i + 1)),
+          5L * ONE_MEGABYTE);
     }
 
-    TableName tableWithoutQuota = createTable();
-    assertNull(chore.getSpaceQuotaForTable(tableWithoutQuota));
+    regionReports.put(new HRegionInfo(tn1, Bytes.toBytes(0), Bytes.toBytes(1)), 1024L * 512L);
+    regionReports.put(new HRegionInfo(tn1, Bytes.toBytes(1), Bytes.toBytes(2)), 1024L * 256L);
+
+    // Below the quota
+    assertEquals(ViolationState.IN_OBSERVANCE,
+        chore.getTargetViolationState(tn1, quota, regionReports));
+
+    regionReports.put(new HRegionInfo(tn1, Bytes.toBytes(2), Bytes.toBytes(3)), 1024L * 256L);
+
+    // Equal to the quota is still in observance
+    assertEquals(ViolationState.IN_OBSERVANCE,
+        chore.getTargetViolationState(tn1, quota, regionReports));
+
+    regionReports.put(new HRegionInfo(tn1, Bytes.toBytes(3), Bytes.toBytes(4)), 1024L);
+
+    // Exceeds the quota, should be in violation
+    assertEquals(ViolationState.IN_VIOLATION,
+        chore.getTargetViolationState(tn1, quota, regionReports));
   }
 
-  Map<TableName, QuotaSettings> createTablesWithSpaceQuotas() throws Exception {
-    final Admin admin = TEST_UTIL.getAdmin();
-    final Map<TableName, QuotaSettings> tablesWithQuotas = new HashMap<>();
+  @Test
+  public void testNumRegionsForTable() {
+    TableName tn1 = TableName.valueOf("t1");
+    TableName tn2 = TableName.valueOf("t2");
+    TableName tn3 = TableName.valueOf("t3");
 
-    final TableName tn1 = createTable();
-    final TableName tn2 = createTable();
-
-    NamespaceDescriptor nd = NamespaceDescriptor.create("ns" + COUNTER.getAndIncrement()).build();
-    admin.createNamespace(nd);
-    final TableName tn3 = createTableInNamespace(nd);
-    final TableName tn4 = createTableInNamespace(nd);
-    final TableName tn5 = createTableInNamespace(nd);
-
-    final long sizeLimit1 = 1024L * 1024L * 1024L * 1024L * 5L; // 5TB
-    final SpaceViolationPolicy violationPolicy1 = SpaceViolationPolicy.NO_WRITES;
-    QuotaSettings qs1 = QuotaSettingsFactory.limitTableSpace(tn1, sizeLimit1, violationPolicy1);
-    tablesWithQuotas.put(tn1, qs1);
-    admin.setQuota(qs1);
-
-    final long sizeLimit2 = 1024L * 1024L * 1024L * 200L; // 200GB
-    final SpaceViolationPolicy violationPolicy2 = SpaceViolationPolicy.NO_WRITES_COMPACTIONS;
-    QuotaSettings qs2 = QuotaSettingsFactory.limitTableSpace(tn2, sizeLimit2, violationPolicy2);
-    tablesWithQuotas.put(tn2, qs2);
-    admin.setQuota(qs2);
-
-    final long sizeLimit3 = 1024L * 1024L * 1024L * 1024L * 100L; // 100TB
-    final SpaceViolationPolicy violationPolicy3 = SpaceViolationPolicy.NO_INSERTS;
-    QuotaSettings qs3 = QuotaSettingsFactory.limitNamespaceSpace(nd.getName(), sizeLimit3, violationPolicy3);
-    tablesWithQuotas.put(tn3, qs3);
-    tablesWithQuotas.put(tn4, qs3);
-    tablesWithQuotas.put(tn5, qs3);
-    admin.setQuota(qs3);
-
-    final long sizeLimit4 = 1024L * 1024L * 1024L * 5L; // 5GB
-    final SpaceViolationPolicy violationPolicy4 = SpaceViolationPolicy.NO_INSERTS;
-    QuotaSettings qs4 = QuotaSettingsFactory.limitTableSpace(tn5, sizeLimit4, violationPolicy4);
-    // Override the ns quota for tn5, import edge-case to catch table quota taking
-    // precedence over ns quota.
-    tablesWithQuotas.put(tn5, qs4);
-    admin.setQuota(qs4);
-
-    return tablesWithQuotas;
-  }
-
-  TableName createTable() throws Exception {
-    return createTableWithRegions(1);
-  }
-
-  TableName createTableWithRegions(int numRegions) throws Exception {
-    final Admin admin = TEST_UTIL.getAdmin();
-    final TableName tn = TableName.valueOf(testName.getMethodName() + COUNTER.getAndIncrement());
-
-    // Delete the old table
-    if (admin.tableExists(tn)) {
-      admin.disableTable(tn);
-      admin.deleteTable(tn);
+    final int numTable1Regions = 10;
+    final int numTable2Regions = 15;
+    final int numTable3Regions = 8;
+    Map<HRegionInfo,Long> regionReports = new HashMap<>();
+    for (int i = 0; i < numTable1Regions; i++) {
+      regionReports.put(new HRegionInfo(tn1, Bytes.toBytes(i), Bytes.toBytes(i + 1)), 0L);
     }
 
-    // Create the table
-    HTableDescriptor tableDesc = new HTableDescriptor(tn);
-    tableDesc.addFamily(new HColumnDescriptor("f1"));
-    if (numRegions == 1) {
-      admin.createTable(tableDesc);
-    } else {
-      admin.createTable(tableDesc, Bytes.toBytes("a"), Bytes.toBytes("z"), numRegions);
-    }
-    return tn;
-  }
-
-  TableName createTableInNamespace(NamespaceDescriptor nd) throws Exception {
-    final Admin admin = TEST_UTIL.getAdmin();
-    final TableName tn = TableName.valueOf(nd.getName(),
-        testName.getMethodName() + COUNTER.getAndIncrement());
-
-    // Delete the old table
-    if (admin.tableExists(tn)) {
-      admin.disableTable(tn);
-      admin.deleteTable(tn);
+    for (int i = 0; i < numTable2Regions; i++) {
+      regionReports.put(new HRegionInfo(tn2, Bytes.toBytes(i), Bytes.toBytes(i + 1)), 0L);
     }
 
-    // Create the table
-    HTableDescriptor tableDesc = new HTableDescriptor(tn);
-    tableDesc.addFamily(new HColumnDescriptor("f1"));
-    
-    admin.createTable(tableDesc);
-    return tn;
+    for (int i = 0; i < numTable3Regions; i++) {
+      regionReports.put(new HRegionInfo(tn3, Bytes.toBytes(i), Bytes.toBytes(i + 1)), 0L);
+    }
+
+    assertEquals(numTable1Regions, chore.numRegionsForTable(regionReports, tn1));
+    assertEquals(numTable2Regions, chore.numRegionsForTable(regionReports, tn2));
+    assertEquals(numTable3Regions, chore.numRegionsForTable(regionReports, tn3));
   }
-  
+
+  @Test
+  public void testQuotaInheritance() throws Exception {
+    final String ns1 = "ns1";
+    final TableName t1 = TableName.valueOf(ns1, "t1");
+    final AtomicReference<Quotas> tableQuota = new AtomicReference<>(null);
+    Answer<Quotas> tableQuotaAnswer = new Answer<Quotas>() {
+      @Override
+      public Quotas answer(InvocationOnMock invocation) throws Throwable {
+        assertEquals(1, invocation.getArguments().length);
+        TableName tn = invocation.getArgumentAt(0, TableName.class);
+        assertEquals(t1, tn);
+        return tableQuota.get();
+      }
+    };
+    final AtomicReference<Quotas> namespaceQuota = new AtomicReference<>(null);
+    Answer<Quotas> namespaceQuotaAnswer = new Answer<Quotas>() {
+      @Override
+      public Quotas answer(InvocationOnMock invocation) throws Throwable {
+        assertEquals(1, invocation.getArguments().length);
+        String namespace = invocation.getArgumentAt(0, String.class);
+        assertEquals(ns1, namespace);
+        return namespaceQuota.get();
+      }
+    };
+
+    when(chore.getQuotaForTable(any(TableName.class))).thenAnswer(tableQuotaAnswer);
+    when(chore.getQuotaForNamespace(any(String.class))).thenAnswer(namespaceQuotaAnswer);
+
+    final Quotas disableQuota = Quotas.newBuilder().setSpace(
+            SpaceQuota.newBuilder()
+                .setSoftLimit(1024L)
+                .setViolationPolicy(SpaceViolationPolicy.DISABLE)
+                .build())
+        .build();
+    final Quotas noWritesQuota = Quotas.newBuilder().setSpace(
+            SpaceQuota.newBuilder()
+                .setSoftLimit(2048L)
+                .setViolationPolicy(SpaceViolationPolicy.NO_WRITES)
+                .build())
+        .build();
+
+    tableQuota.set(null);
+    namespaceQuota.set(null);
+
+    // No table or ns quota
+    assertNull(chore.getSpaceQuotaForTable(t1));
+    assertNull(chore.getSpaceQuotaForNamespace(ns1));
+
+    tableQuota.set(disableQuota);
+    namespaceQuota.set(null);
+
+    // Table quota only
+    assertEquals(disableQuota.getSpace(), chore.getSpaceQuotaForTable(t1));
+    assertNull(chore.getSpaceQuotaForNamespace(ns1));
+
+    tableQuota.set(null);
+    namespaceQuota.set(noWritesQuota);
+
+    // No table quota falls back to NS quota
+    assertEquals(noWritesQuota.getSpace(), chore.getSpaceQuotaForTable(t1));
+    assertEquals(noWritesQuota.getSpace(), chore.getSpaceQuotaForNamespace(ns1));
+
+    tableQuota.set(noWritesQuota);
+    namespaceQuota.set(disableQuota);
+
+    // Table quota takes priority over namespace, but both are present
+    assertEquals(noWritesQuota.getSpace(), chore.getSpaceQuotaForTable(t1));
+    assertEquals(disableQuota.getSpace(), chore.getSpaceQuotaForNamespace(ns1));
+  }
+
+  @Test
+  public void testNamespaceUtilizationMap() {
+    String namespace1 = "ns1";
+    String namespace2 = "ns2";
+    String namespace3 = "ns3";
+    TableName tn1 = TableName.valueOf("table1");
+    TableName tn2 = TableName.valueOf("table2");
+    Map<String,Long> expectedNamespaceSizes = new HashMap<>();
+    // Some regions for the "default" namespace.
+    Map<HRegionInfo,Long> reportedRegionSpaceUse = new HashMap<>();
+    for (int i = 0; i < 5; i++) {
+      reportedRegionSpaceUse.put(new HRegionInfo(tn1, Bytes.toBytes(i), Bytes.toBytes(i + 1)),
+          ONE_MEGABYTE);
+      setOrAdd(expectedNamespaceSizes, tn1.getNamespaceAsString(), ONE_MEGABYTE);
+      reportedRegionSpaceUse.put(new HRegionInfo(tn2, Bytes.toBytes(i), Bytes.toBytes(i + 1)),
+          ONE_MEGABYTE);
+      setOrAdd(expectedNamespaceSizes, tn1.getNamespaceAsString(), ONE_MEGABYTE);
+    }
+    Set<TableName> namespaceTables = new HashSet<>();
+    for (String ns : Arrays.asList(namespace1, namespace2, namespace3)) {
+      for (int i = 0; i < 3; i++) {
+        TableName tn = TableName.valueOf(ns, "table" + i);
+        namespaceTables.add(tn);
+        long sizeUse = ONE_MEGABYTE * (i + 1);
+        reportedRegionSpaceUse.put(new HRegionInfo(tn, Bytes.toBytes(i), Bytes.toBytes(i + 1)),
+            sizeUse);
+        setOrAdd(expectedNamespaceSizes, tn.getNamespaceAsString(), sizeUse);
+      }
+    }
+
+    // Avoid the default namespace
+    Map<String,Long> actualUse = chore.buildNamespaceSpaceUtilization(namespaceTables,
+        reportedRegionSpaceUse);
+    Map<String,Long> explicitNamespacesOnly = new HashMap<>(expectedNamespaceSizes);
+    explicitNamespacesOnly.remove(NamespaceDescriptor.DEFAULT_NAMESPACE_NAME_STR);
+    assertEquals(explicitNamespacesOnly, actualUse);
+
+    // Should be able to get all of the namespaces
+    namespaceTables.add(tn1);
+    namespaceTables.add(tn2);
+    Map<String,Long> allNamespaces = chore.buildNamespaceSpaceUtilization(namespaceTables,
+        reportedRegionSpaceUse);
+    assertEquals(expectedNamespaceSizes, allNamespaces);
+
+    // No results when we provide no tables with namespace quotas
+    assertEquals(0, chore.buildNamespaceSpaceUtilization(Collections.emptySet(),
+        reportedRegionSpaceUse).size());
+    // All results are zero
+    Map<String,Long> allNamespacesAreZero = chore.buildNamespaceSpaceUtilization(namespaceTables,
+        Collections.emptyMap());
+    assertEquals(4, allNamespacesAreZero.size());
+    for (Entry<String,Long> entry : allNamespacesAreZero.entrySet()) {
+      assertEquals("Unexpected value for " + entry.getKey(), Long.valueOf(0L), entry.getValue());
+    }
+
+    // Remove all but namespace1 and namespace3
+    namespaceTables.remove(tn1);
+    namespaceTables.remove(tn2);
+    Iterator<TableName> iter = namespaceTables.iterator();
+    while (iter.hasNext()) {
+      TableName tn = iter.next();
+      if (namespace2.equals(tn.getNamespaceAsString())) {
+        iter.remove();
+      }
+    }
+    Map<String,Long> reducedNamespaces = chore.buildNamespaceSpaceUtilization(namespaceTables,
+        reportedRegionSpaceUse);
+    Map<String,Long> expectedReducedNamespaces = new HashMap<>(expectedNamespaceSizes);
+    expectedReducedNamespaces.remove(NamespaceDescriptor.DEFAULT_NAMESPACE_NAME_STR);
+    expectedReducedNamespaces.remove(namespace2);
+    assertEquals(expectedReducedNamespaces, reducedNamespaces);
+  }
+
+  private void setOrAdd(Map<String,Long> namespaceSizes, String namespace, long newSize) {
+    Long currentSize = namespaceSizes.get(namespace);
+    if (null == currentSize) {
+      currentSize = 0L;
+    }
+    namespaceSizes.put(namespace, currentSize + newSize);
+  }
 }

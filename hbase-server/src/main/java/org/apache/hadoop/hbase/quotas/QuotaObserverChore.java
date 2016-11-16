@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -31,12 +32,10 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.ScheduledChore;
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.master.HMaster;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.Quotas;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceQuota;
-import org.apache.hadoop.hbase.util.Bytes;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.HashMultimap;
@@ -218,7 +217,7 @@ public class QuotaObserverChore extends ScheduledChore {
   TablesWithQuotas fetchAllTablesWithQuotasDefined() throws IOException {
     final Scan scan = QuotaTableUtil.makeScan(null);
     final QuotaRetriever scanner = new QuotaRetriever();
-    final TablesWithQuotas tablesWithQuotas = new TablesWithQuotas(master);
+    final TablesWithQuotas tablesWithQuotas = new TablesWithQuotas(this);
     try {
       scanner.init(master.getConnection(), scan);
       for (QuotaSettings quotaSettings : scanner) {
@@ -232,11 +231,17 @@ public class QuotaObserverChore extends ScheduledChore {
         if (null != namespace) {
           assert null == quotaSettings.getTableName();
           // Collect all of the tables in the namespace
-          for (TableName tn : master.getConnection().getAdmin().listTableNamesByNamespace(namespace)) {
-            tablesWithQuotas.addNamespaceQuotaTable(tn);
+          for (TableName tableUnderNs : master.getConnection().getAdmin().listTableNamesByNamespace(namespace)) {
+            if (LOG.isTraceEnabled()) {
+              LOG.trace("Adding " + tableUnderNs + " under " +  namespace + " as having a namespace quota");
+            }
+            tablesWithQuotas.addNamespaceQuotaTable(tableUnderNs);
           }
         } else {
           assert null != tableName;
+          if (LOG.isTraceEnabled()) {
+            LOG.trace("Adding " + tableName + " as having table quota.");
+          }
           // namespace is already null, must be a non-null tableName
           tablesWithQuotas.addTableQuotaTable(tableName);
         }
@@ -253,8 +258,25 @@ public class QuotaObserverChore extends ScheduledChore {
    * Fetches the Quota for the given table. May be null.
    */
   SpaceQuota getSpaceQuotaForTable(TableName table) throws IOException {
-    final Connection connection = master.getConnection();
-    Quotas quotas = QuotaTableUtil.getTableQuota(connection, table);
+    Quotas quotas = getQuotaForTable(table);
+    if (null != quotas && quotas.hasSpace()) {
+      return quotas.getSpace();
+    }
+    return getSpaceQuotaForNamespace(table.getNamespaceAsString());
+  }
+
+  /**
+   * Fetches the table quota. Visible for mocking/testing.
+   */
+  Quotas getQuotaForTable(TableName table) throws IOException {
+    return QuotaTableUtil.getTableQuota(master.getConnection(), table);
+  }
+
+  /**
+   * Fetches the Quota for the given namespace. May be null.
+   */
+  SpaceQuota getSpaceQuotaForNamespace(String namespace) throws IOException {
+    Quotas quotas = getQuotaForNamespace(namespace);
     if (null != quotas && quotas.hasSpace()) {
       return quotas.getSpace();
     }
@@ -262,15 +284,10 @@ public class QuotaObserverChore extends ScheduledChore {
   }
 
   /**
-   * Fetches the Quota for the given namespace. May be null.
+   * Fetches the namespace quota. Visible for mocking/testing.
    */
-  SpaceQuota getSpaceQuotaForNamespace(String namespace) throws IOException {
-    final Connection connection = master.getConnection();
-    Quotas quotas = QuotaTableUtil.getNamespaceQuota(connection, namespace);
-    if (null != quotas && quotas.hasSpace()) {
-      return quotas.getSpace();
-    }
-    return null;
+  Quotas getQuotaForNamespace(String namespace) throws IOException {
+    return QuotaTableUtil.getNamespaceQuota(master.getConnection(), namespace);
   }
 
   /**
@@ -289,7 +306,7 @@ public class QuotaObserverChore extends ScheduledChore {
   /**
    * Returns the current state of violation policy for the given namespace's quota
    */
-  private ViolationState getCurrentNamespaceViolationState(String namespace) {
+  ViolationState getCurrentNamespaceViolationState(String namespace) {
     // TODO Can one instance of a Chore be executed concurrently?
     ViolationState state = this.namespaceQuotaViolationStates.get(namespace);
     if (null == state) {
@@ -302,7 +319,7 @@ public class QuotaObserverChore extends ScheduledChore {
   /**
    * Computes the target {@link ViolationState} for the given table.
    */
-  private ViolationState getTargetViolationState(TableName table, SpaceQuota spaceQuota,
+  ViolationState getTargetViolationState(TableName table, SpaceQuota spaceQuota,
       Map<HRegionInfo,Long> reportedRegionSpaceUse) {
     final long sizeLimitInBytes = spaceQuota.getSoftLimit();
     long sum = 0L;
@@ -314,19 +331,26 @@ public class QuotaObserverChore extends ScheduledChore {
       }
     }
     // Observance is defined as the size of the table being less than the limit
-    return sum < sizeLimitInBytes ? ViolationState.IN_OBSERVANCE : ViolationState.IN_VIOLATION;
+    return sum <= sizeLimitInBytes ? ViolationState.IN_OBSERVANCE : ViolationState.IN_VIOLATION;
   }
 
   /**
    * Filters out all regions which do not belong to the given table.
    */
   Iterable<Entry<HRegionInfo,Long>> filterByTable(Map<HRegionInfo,Long> regions, final TableName table) {
-    return Iterables.filter(regions.entrySet(), new Predicate<Entry<HRegionInfo,Long>>() {
+    return Iterables.filter(Objects.requireNonNull(regions).entrySet(), new Predicate<Entry<HRegionInfo,Long>>() {
       @Override
       public boolean apply(Entry<HRegionInfo,Long> input) {
         return table.equals(input.getKey().getTable());
       }
     });
+  }
+
+  /**
+   * Computes the number of regions that belong to the given table.
+   */
+  int numRegionsForTable(Map<HRegionInfo,Long> regions, final TableName table) {
+    return Iterables.size(filterByTable(regions, table));
   }
 
   /**
@@ -354,10 +378,22 @@ public class QuotaObserverChore extends ScheduledChore {
   /**
    * Computes the utilization of a namespace by summing the utilization of all tables in that namespace.
    */
-  private Map<String,Long> buildNamespaceSpaceUtilization(Set<TableName> tablesWithNamespaceQuotas,
+  Map<String,Long> buildNamespaceSpaceUtilization(Set<TableName> tablesWithNamespaceQuotas,
       Map<HRegionInfo,Long> reportedRegionSpaceUse) {
-    // TODO Auto-generated method stub
-    return null;
+    Map<String,Long> namespaceUsage = new HashMap<>();
+    for (TableName tableWithNamespaceQuota : tablesWithNamespaceQuotas) {
+      long currentSum = 0L;
+      for (Entry<HRegionInfo,Long> entry : filterByTable(reportedRegionSpaceUse, tableWithNamespaceQuota)) {
+        currentSum += entry.getValue();
+      }
+      Long previousSum = namespaceUsage.get(tableWithNamespaceQuota.getNamespaceAsString());
+      if (null == previousSum) {
+        previousSum = 0L;
+      }
+      previousSum += currentSum;
+      namespaceUsage.put(tableWithNamespaceQuota.getNamespaceAsString(), previousSum);
+    }
+    return namespaceUsage;
   }
 
   /**
@@ -411,10 +447,10 @@ public class QuotaObserverChore extends ScheduledChore {
   static class TablesWithQuotas {
     private final Set<TableName> tablesWithTableQuotas = new HashSet<>();
     private final Set<TableName> tablesWithNamespaceQuotas = new HashSet<>();
-    private final HMaster master;
+    private final QuotaObserverChore chore;
 
-    public TablesWithQuotas(HMaster master) {
-      this.master = master;
+    public TablesWithQuotas(QuotaObserverChore chore) {
+      this.chore = chore;
     }
 
     /**
@@ -425,8 +461,7 @@ public class QuotaObserverChore extends ScheduledChore {
     }
 
     /**
-     * Adds a table in a namespace with a namespace quota.
-     * @param tn
+     * Adds a table with a namespace quota.
      */
     public void addNamespaceQuotaTable(TableName tn) {
       tablesWithNamespaceQuotas.add(tn);
@@ -478,7 +513,7 @@ public class QuotaObserverChore extends ScheduledChore {
      * reports received from RegionServers yet.
      */
     public void filterInsufficientlyReportedTables(Map<HRegionInfo,Long> regionReports) throws IOException {
-      final double percentRegionsReportedThreshold = getRegionReportPercent(master.getConfiguration());
+      final double percentRegionsReportedThreshold = getRegionReportPercent(chore.master.getConfiguration());
       Set<TableName> tablesToRemove = new HashSet<>();
       for (TableName table : Iterables.concat(tablesWithTableQuotas, tablesWithNamespaceQuotas)) {
         // Don't recompute a table we've already computed
@@ -486,14 +521,14 @@ public class QuotaObserverChore extends ScheduledChore {
           continue;
         }
         final int numRegionsInTable = getNumRegions(table);
-        final int reportedRegionsInQuota = getNumReportedRegionsForQuota(table, regionReports);
+        final int reportedRegionsInQuota = chore.numRegionsForTable(regionReports, table);
         final double ratioReported = ((double) reportedRegionsInQuota) / numRegionsInTable;
         if (ratioReported < percentRegionsReportedThreshold) {
           if (LOG.isTraceEnabled()) {
             LOG.trace("Filtering " + table + " because " + reportedRegionsInQuota  + " of " +
                 numRegionsInTable + " were reported.");
-            tablesToRemove.add(table);
           }
+          tablesToRemove.add(table);
         } else if (LOG.isTraceEnabled()) {
           LOG.trace("Retaining " + table + " because " + reportedRegionsInQuota  + " of " +
               numRegionsInTable + " were reported.");
@@ -509,21 +544,15 @@ public class QuotaObserverChore extends ScheduledChore {
      * Computes the number of regions in a table.
      */
     int getNumRegions(TableName table) throws IOException {
-      return master.getConnection().getAdmin().getTableRegions(table).size();
+      return chore.master.getConnection().getAdmin().getTableRegions(table).size();
     }
 
-    /**
-     * Computes the number of regions in the <code>snapshot</code> that belong
-     * to the give <code>table</code>.
-     */
-    int getNumReportedRegionsForQuota(TableName table, Map<HRegionInfo, Long> snapshot) {
-      int sum = 0;
-      for (HRegionInfo regionInfo : snapshot.keySet()) {
-        if (table.equals(regionInfo.getTable())) {
-          sum++;
-        }
-      }
-      return sum;
+    @Override
+    public String toString() {
+      final StringBuilder sb = new StringBuilder(32);
+      sb.append(getClass().getSimpleName()).append(": tablesWithTableQuotas=").append(this.tablesWithTableQuotas);
+      sb.append(", tablesWithNamespaceQuotas=").append(this.tablesWithNamespaceQuotas);
+      return sb.toString();
     }
   }
 }
