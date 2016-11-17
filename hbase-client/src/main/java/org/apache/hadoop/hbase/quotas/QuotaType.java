@@ -28,4 +28,5 @@ import org.apache.hadoop.hbase.classification.InterfaceStability;
 public enum QuotaType {
   THROTTLE,
   GLOBAL_BYPASS,
+  SPACE,
 }
