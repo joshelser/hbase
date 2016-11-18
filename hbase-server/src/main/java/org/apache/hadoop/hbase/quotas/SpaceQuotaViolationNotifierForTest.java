@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.Connection;
 
 /**
  * A SpaceQuotaViolationNotifier implementation for verifying testing.
@@ -27,6 +28,9 @@ import org.apache.hadoop.hbase.TableName;
 public class SpaceQuotaViolationNotifierForTest implements SpaceQuotaViolationNotifier {
 
   private final Map<TableName,SpaceViolationPolicy> tablesInViolation = new HashMap<>();
+
+  @Override
+  public void initialize(Connection conn) {}
 
   @Override
   public void transitionTableToViolation(TableName tableName, SpaceViolationPolicy violationPolicy) {
