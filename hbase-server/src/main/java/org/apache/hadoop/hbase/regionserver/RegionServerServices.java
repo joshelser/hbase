@@ -34,7 +34,8 @@ import org.apache.hadoop.hbase.executor.ExecutorService;
 import org.apache.hadoop.hbase.ipc.RpcServerInterface;
 import org.apache.hadoop.hbase.master.TableLockManager;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.RegionServerStatusProtos.RegionStateTransition.TransitionCode;
-import org.apache.hadoop.hbase.quotas.RegionServerQuotaManager;
+import org.apache.hadoop.hbase.quotas.RegionServerRpcQuotaManager;
+import org.apache.hadoop.hbase.quotas.RegionServerSpaceQuotaManager;
 import org.apache.hadoop.hbase.regionserver.throttle.ThroughputController;
 import org.apache.hadoop.hbase.wal.WAL;
 import org.apache.zookeeper.KeeperException;
@@ -82,14 +83,19 @@ public interface RegionServerServices extends OnlineRegions, FavoredNodesForRegi
   TableLockManager getTableLockManager();
 
   /**
-   * @return RegionServer's instance of {@link RegionServerQuotaManager}
+   * @return RegionServer's instance of {@link RegionServerRpcQuotaManager}
    */
-  RegionServerQuotaManager getRegionServerQuotaManager();
+  RegionServerRpcQuotaManager getRegionServerRpcQuotaManager();
 
   /**
    * @return RegionServer's instance of {@link SecureBulkLoadManager}
    */
   SecureBulkLoadManager getSecureBulkLoadManager();
+
+  /**
+   * @return RegionServer's instance of {@link RegionServerSpaceQuotaManager}
+   */
+  RegionServerSpaceQuotaManager getRegionServerSpaceQuotaManager();
 
   /**
    * Context for postOpenDeployTasks().
