@@ -116,7 +116,7 @@ import org.apache.hadoop.hbase.master.balancer.BaseLoadBalancer;
 import org.apache.hadoop.hbase.mob.MobCacheConfig;
 import org.apache.hadoop.hbase.procedure.RegionServerProcedureManagerHost;
 import org.apache.hadoop.hbase.quotas.FileSystemUtilizationChore;
-import org.apache.hadoop.hbase.quotas.RegionServerQuotaManager;
+import org.apache.hadoop.hbase.quotas.RegionServerRpcQuotaManager;
 import org.apache.hadoop.hbase.regionserver.compactions.CompactionConfiguration;
 import org.apache.hadoop.hbase.regionserver.compactions.CompactionProgress;
 import org.apache.hadoop.hbase.regionserver.handler.CloseMetaHandler;
@@ -464,7 +464,7 @@ public class HRegionServer extends HasThread implements
 
   private RegionServerProcedureManagerHost rspmHost;
 
-  private RegionServerQuotaManager rsQuotaManager;
+  private RegionServerRpcQuotaManager rsQuotaManager;
 
   // Table level lock manager for locking for region operations
   protected TableLockManager tableLockManager;
@@ -915,7 +915,7 @@ public class HRegionServer extends HasThread implements
     }
 
     // Setup the Quota Manager
-    rsQuotaManager = new RegionServerQuotaManager(this);
+    rsQuotaManager = new RegionServerRpcQuotaManager(this);
 
     this.fsUtilizationChore = new FileSystemUtilizationChore(this);
 
@@ -2808,7 +2808,7 @@ public class HRegionServer extends HasThread implements
   }
 
   @Override
-  public RegionServerQuotaManager getRegionServerQuotaManager() {
+  public RegionServerRpcQuotaManager getRegionServerRpcQuotaManager() {
     return rsQuotaManager;
   }
 
