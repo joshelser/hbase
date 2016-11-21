@@ -2564,7 +2564,8 @@ public final class ProtobufUtil {
    * @param proto The protocol buffer space violation policy.
    * @return The corresponding client SpaceViolationPolicy.
    */
-  public static SpaceViolationPolicy toViolationPolicy(final QuotaProtos.SpaceViolationPolicy proto) {
+  public static SpaceViolationPolicy toViolationPolicy(
+      final QuotaProtos.SpaceViolationPolicy proto) {
     switch (proto) {
       case DISABLE: return SpaceViolationPolicy.DISABLE;
       case NO_WRITES_COMPACTIONS: return SpaceViolationPolicy.NO_WRITES_COMPACTIONS;
@@ -2615,8 +2616,8 @@ public final class ProtobufUtil {
    * @param violationPolicy The policy to apply when the quota is violated.
    * @return The protocol buffer SpaceQuota.
    */
-  public static QuotaProtos.SpaceQuota toProtoSpaceQuota(final long limit,
-      final SpaceViolationPolicy violationPolicy) {
+  public static QuotaProtos.SpaceQuota toProtoSpaceQuota(
+      final long limit, final SpaceViolationPolicy violationPolicy) {
     return QuotaProtos.SpaceQuota.newBuilder()
         .setSoftLimit(limit)
         .setViolationPolicy(toProtoViolationPolicy(violationPolicy))
