@@ -17,6 +17,7 @@
 package org.apache.hadoop.hbase.quotas;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -25,7 +26,12 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.classification.InterfaceAudience;
 import org.apache.hadoop.hbase.classification.InterfaceStability;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.ResultScanner;
+import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.regionserver.RegionServerServices;
+import org.apache.hadoop.hbase.util.Bytes;
 
 /**
  * A manager for filesystem space quotas in the RegionServer.
@@ -62,11 +68,35 @@ public class RegionServerSpaceQuotaManager {
     }
   }
 
+  Connection getConnection() {
+    return rsServices.getConnection();
+  }
+
   /**
    * Returns the collection of tables which have quota violation policies enforced.
    */
-  public Map<TableName,SpaceViolationPolicy> getActivePolicyEnforcements() {
-    return null;
+  public Map<TableName,SpaceViolationPolicy> getActivePolicyEnforcements() throws IOException {
+    try (Table quotaTable = getConnection().getTable(QuotaUtil.QUOTA_TABLE_NAME);
+        ResultScanner scanner = quotaTable.getScanner(QuotaTableUtil.makeQuotaViolationScan())) {
+      Map<TableName,SpaceViolationPolicy> activePolicies = new HashMap<>();
+      for (Result result : scanner) {
+        try {
+          extractViolationPolicy(result, activePolicies);
+        } catch (IllegalArgumentException e) {
+          final String msg = "Failed to parse result for row " + Bytes.toString(result.getRow());
+          LOG.error(msg, e);
+          throw new IOException(msg, e);
+        }
+      }
+      return activePolicies;
+    }
+  }
+
+  /**
+   * Wrapper around {@link QuotaTableUtil#extractViolationPolicy(Result, Map)} for testing.
+   */
+  void extractViolationPolicy(Result result, Map<TableName,SpaceViolationPolicy> activePolicies) {
+    QuotaTableUtil.extractViolationPolicy(result, activePolicies);
   }
 
   /**

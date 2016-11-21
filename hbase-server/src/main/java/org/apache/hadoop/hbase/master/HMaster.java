@@ -126,6 +126,7 @@ import org.apache.hadoop.hbase.procedure2.store.wal.WALProcedureStore;
 import org.apache.hadoop.hbase.quotas.MasterQuotaManager;
 import org.apache.hadoop.hbase.quotas.QuotaObserverChore;
 import org.apache.hadoop.hbase.quotas.SpaceQuotaViolationNotifier;
+import org.apache.hadoop.hbase.quotas.SpaceQuotaViolationNotifierFactory;
 import org.apache.hadoop.hbase.quotas.SpaceQuotaViolationNotifierForTest;
 import org.apache.hadoop.hbase.regionserver.DefaultStoreEngine;
 import org.apache.hadoop.hbase.regionserver.HRegionServer;
@@ -914,7 +915,10 @@ public class HMaster extends HRegionServer implements MasterServices {
   }
 
   SpaceQuotaViolationNotifier createQuotaViolationNotifier() {
-    return new SpaceQuotaViolationNotifierForTest();
+    SpaceQuotaViolationNotifier notifier =
+        SpaceQuotaViolationNotifierFactory.getInstance().create(getConfiguration());
+    notifier.initialize(getClusterConnection());
+    return notifier;
   }
 
   boolean isCatalogJanitorEnabled() {

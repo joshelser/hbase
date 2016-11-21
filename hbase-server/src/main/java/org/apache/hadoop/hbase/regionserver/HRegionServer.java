@@ -117,6 +117,7 @@ import org.apache.hadoop.hbase.mob.MobCacheConfig;
 import org.apache.hadoop.hbase.procedure.RegionServerProcedureManagerHost;
 import org.apache.hadoop.hbase.quotas.FileSystemUtilizationChore;
 import org.apache.hadoop.hbase.quotas.RegionServerRpcQuotaManager;
+import org.apache.hadoop.hbase.quotas.RegionServerSpaceQuotaManager;
 import org.apache.hadoop.hbase.regionserver.compactions.CompactionConfiguration;
 import org.apache.hadoop.hbase.regionserver.compactions.CompactionProgress;
 import org.apache.hadoop.hbase.regionserver.handler.CloseMetaHandler;
@@ -465,6 +466,7 @@ public class HRegionServer extends HasThread implements
   private RegionServerProcedureManagerHost rspmHost;
 
   private RegionServerRpcQuotaManager rsQuotaManager;
+  private RegionServerSpaceQuotaManager rsSpaceQuotaManager;
 
   // Table level lock manager for locking for region operations
   protected TableLockManager tableLockManager;
@@ -916,6 +918,7 @@ public class HRegionServer extends HasThread implements
 
     // Setup the Quota Manager
     rsQuotaManager = new RegionServerRpcQuotaManager(this);
+    rsSpaceQuotaManager = new RegionServerSpaceQuotaManager(this);
 
     this.fsUtilizationChore = new FileSystemUtilizationChore(this);
 
@@ -989,6 +992,7 @@ public class HRegionServer extends HasThread implements
 
         // Start the Quota Manager
         rsQuotaManager.start(getRpcServer().getScheduler());
+        rsSpaceQuotaManager.start();
       }
 
       // We registered with the Master.  Go into run mode.
@@ -1079,6 +1083,9 @@ public class HRegionServer extends HasThread implements
     // Stop the quota manager
     if (rsQuotaManager != null) {
       rsQuotaManager.stop();
+    }
+    if (rsSpaceQuotaManager != null) {
+      rsSpaceQuotaManager.stop();
     }
 
     // Stop the snapshot and other procedure handlers, forcefully killing all running tasks
@@ -3654,5 +3661,10 @@ public class HRegionServer extends HasThread implements
   @Override
   public SecureBulkLoadManager getSecureBulkLoadManager() {
     return this.secureBulkLoadManager;
+  }
+
+  @Override
+  public RegionServerSpaceQuotaManager getRegionServerSpaceQuotaManager() {
+    return this.rsSpaceQuotaManager;
   }
 }
