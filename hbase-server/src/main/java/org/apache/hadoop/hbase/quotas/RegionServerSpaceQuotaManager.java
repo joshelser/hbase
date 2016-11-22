@@ -47,6 +47,7 @@ public class RegionServerSpaceQuotaManager {
   private final RegionServerServices rsServices;
 
   private SpaceQuotaViolationPolicyRefresherChore spaceQuotaRefresher;
+  private Map<TableName,SpaceViolationPolicy> enforcedPolicies;
 
   public RegionServerSpaceQuotaManager(RegionServerServices rsServices) {
     this.rsServices = Objects.requireNonNull(rsServices);
@@ -59,6 +60,7 @@ public class RegionServerSpaceQuotaManager {
     }
 
     spaceQuotaRefresher = new SpaceQuotaViolationPolicyRefresherChore(this);
+    enforcedPolicies = new HashMap<>();
   }
 
   public synchronized void stop() {
@@ -73,9 +75,27 @@ public class RegionServerSpaceQuotaManager {
   }
 
   /**
-   * Returns the collection of tables which have quota violation policies enforced.
+   * Returns the collection of tables which have quota violation policies enforced on
+   * this RegionServer.
    */
-  public Map<TableName,SpaceViolationPolicy> getActivePolicyEnforcements() throws IOException {
+  public synchronized Map<TableName,SpaceViolationPolicy> getActivePolicyEnforcements() throws IOException {
+    return new HashMap<>(this.enforcedPolicies);
+  }
+
+  /**
+   * Wrapper around {@link QuotaTableUtil#extractViolationPolicy(Result, Map)} for testing.
+   */
+  void extractViolationPolicy(Result result, Map<TableName,SpaceViolationPolicy> activePolicies) {
+    QuotaTableUtil.extractViolationPolicy(result, activePolicies);
+  }
+
+  /**
+   * Reads all quota violation policies which are to be enforced from the quota table.
+   *
+   * @return The collection of tables which are in violation of their quota and the policy which
+   *    should be enforced.
+   */
+  public Map<TableName, SpaceViolationPolicy> getViolationPoliciesToEnforce() throws IOException {
     try (Table quotaTable = getConnection().getTable(QuotaUtil.QUOTA_TABLE_NAME);
         ResultScanner scanner = quotaTable.getScanner(QuotaTableUtil.makeQuotaViolationScan())) {
       Map<TableName,SpaceViolationPolicy> activePolicies = new HashMap<>();
@@ -93,32 +113,43 @@ public class RegionServerSpaceQuotaManager {
   }
 
   /**
-   * Wrapper around {@link QuotaTableUtil#extractViolationPolicy(Result, Map)} for testing.
-   */
-  void extractViolationPolicy(Result result, Map<TableName,SpaceViolationPolicy> activePolicies) {
-    QuotaTableUtil.extractViolationPolicy(result, activePolicies);
-  }
-
-  /**
-   * Reads all quota violation policies which are to be enforced from the quota table.
-   * @return The collection of tables which are in violation of their quota and the policy which
-   *    should be enforced.
-   */
-  Map<TableName, SpaceViolationPolicy> getEnforcedViolationPolicies() throws IOException {
-    return null;
-  }
-
-  /**
    * Enforces the given violationPolicy on the given table in this RegionServer.
    */
-  void enforceViolationPolicy(TableName tableName, SpaceViolationPolicy violationPolicy) {
+  synchronized void enforceViolationPolicy(
+      TableName tableName, SpaceViolationPolicy violationPolicy) {
+    if (LOG.isTraceEnabled()) {
+      LOG.trace(
+          "Enabling violation policy enforcement on " + tableName
+          + " with policy " + violationPolicy);
+    }
+    // Enact the policy
+    enforceOnRegionServer(tableName, violationPolicy);
+    // Publicize our enacting of the policy
+    enforcedPolicies.put(tableName, violationPolicy);
+  }
+
+  /**
+   * Enacts the given violation policy on this table in the RegionServer.
+   */
+  void enforceOnRegionServer(TableName tableName, SpaceViolationPolicy violationPolicy) {
     throw new RuntimeException();
   }
 
   /**
    * Disables enforcement on any violation policy on the given <code>tableName</code>.
    */
-  void disableViolationPolicyEnforcement(TableName tableName) {
+  synchronized void disableViolationPolicyEnforcement(TableName tableName) {
+    if (LOG.isTraceEnabled()) {
+      LOG.trace("Disabling violation policy enforcement on " + tableName);
+    }
+    disableOnRegionServer(tableName);
+    enforcedPolicies.remove(tableName);
+  }
+
+  /**
+   * Disables any violation policy on this table in the RegionServer.
+   */
+  void disableOnRegionServer(TableName tableName) {
     throw new RuntimeException();
   }
 

@@ -66,16 +66,16 @@ public class SpaceQuotaViolationPolicyRefresherChore extends ScheduledChore {
   protected void chore() {
     try {
       // Tables with a policy currently enforced
-      final Map<TableName, SpaceViolationPolicy> locallyEnforcedViolationPolicies =
+      final Map<TableName, SpaceViolationPolicy> activeViolationPolicies =
           manager.getActivePolicyEnforcements();
       // Tables with policies that should be enforced
       final Map<TableName, SpaceViolationPolicy> violationPolicies =
-          manager.getEnforcedViolationPolicies();
+          manager.getViolationPoliciesToEnforce();
       // Ensure each policy which should be enacted is enacted.
       for (Entry<TableName, SpaceViolationPolicy> entry : violationPolicies.entrySet()) {
         final TableName tableName = entry.getKey();
         final SpaceViolationPolicy policyToEnforce = entry.getValue();
-        final SpaceViolationPolicy currentPolicy = locallyEnforcedViolationPolicies.get(tableName);
+        final SpaceViolationPolicy currentPolicy = activeViolationPolicies.get(tableName);
         if (currentPolicy != policyToEnforce) {
           if (LOG.isTraceEnabled()) {
             LOG.trace("Enabling " + policyToEnforce + " on " + tableName);
@@ -84,7 +84,7 @@ public class SpaceQuotaViolationPolicyRefresherChore extends ScheduledChore {
         }
       }
       // Remove policies which should no longer be enforced
-      Iterator<TableName> iter = locallyEnforcedViolationPolicies.keySet().iterator();
+      Iterator<TableName> iter = activeViolationPolicies.keySet().iterator();
       while (iter.hasNext()) {
         final TableName localTableWithPolicy = iter.next();
         if (!violationPolicies.containsKey(localTableWithPolicy)) {
