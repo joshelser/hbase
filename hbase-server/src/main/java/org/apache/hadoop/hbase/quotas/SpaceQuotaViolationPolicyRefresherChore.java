@@ -67,7 +67,7 @@ public class SpaceQuotaViolationPolicyRefresherChore extends ScheduledChore {
     try {
       // Tables with a policy currently enforced
       final Map<TableName, SpaceViolationPolicy> activeViolationPolicies =
-          manager.getActivePolicyEnforcements();
+          manager.getActivePoliciesAsMap();
       // Tables with policies that should be enforced
       final Map<TableName, SpaceViolationPolicy> violationPolicies =
           manager.getViolationPoliciesToEnforce();

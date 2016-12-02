@@ -16,34 +16,40 @@
  */
 package org.apache.hadoop.hbase.quotas.policies;
 
+import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.quotas.SpaceLimitingException;
 import org.apache.hadoop.hbase.quotas.SpaceViolationPolicy;
+import org.apache.hadoop.hbase.quotas.SpaceViolationPolicyEnforcement;
+import org.apache.hadoop.hbase.regionserver.RegionServerServices;
 
 /**
- * 
+ * A {@link SpaceViolationPolicyEnforcement} instance which does nothing. Useful for tables
+ * which have no violation policy.
  */
-public class NoWritesViolationPolicyEnforcement extends AbstractViolationPolicyEnforcement {
+public class NoopViolationPolicyEnforcement implements SpaceViolationPolicyEnforcement {
+  private static final NoopViolationPolicyEnforcement INSTANCE = new NoopViolationPolicyEnforcement();
 
-  @Override
-  public void enable() {
-    // TODO Auto-generated method stub
-    
+  private NoopViolationPolicyEnforcement() {}
+
+  public static NoopViolationPolicyEnforcement getInstance() {
+    return INSTANCE;
   }
 
   @Override
-  public void disable() {
-    // TODO Auto-generated method stub
-    
-  }
+  public void initialize(RegionServerServices rss, TableName tableName) {}
 
   @Override
-  public void check(Mutation m) throws SpaceLimitingException {
-    throw new RuntimeException("Unimplemented");
-  }
+  public void enable() {}
+
+  @Override
+  public void disable() {}
+
+  @Override
+  public void check(Mutation m) throws SpaceLimitingException {}
 
   @Override
   public SpaceViolationPolicy getPolicy() {
-    return SpaceViolationPolicy.NO_WRITES;
+    return null;
   }
 }

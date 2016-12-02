@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Map.Entry;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -47,7 +48,8 @@ public class RegionServerSpaceQuotaManager {
   private final RegionServerServices rsServices;
 
   private SpaceQuotaViolationPolicyRefresherChore spaceQuotaRefresher;
-  private Map<TableName,SpaceViolationPolicy> enforcedPolicies;
+  private Map<TableName,SpaceViolationPolicyEnforcement> enforcedPolicies;
+  private SpaceViolationPolicyEnforcementFactory factory;
 
   public RegionServerSpaceQuotaManager(RegionServerServices rsServices) {
     this.rsServices = Objects.requireNonNull(rsServices);
@@ -61,6 +63,7 @@ public class RegionServerSpaceQuotaManager {
 
     spaceQuotaRefresher = new SpaceQuotaViolationPolicyRefresherChore(this);
     enforcedPolicies = new HashMap<>();
+    factory = SpaceViolationPolicyEnforcementFactory.getInstance();
   }
 
   public synchronized void stop() {
@@ -70,23 +73,28 @@ public class RegionServerSpaceQuotaManager {
     }
   }
 
-  Connection getConnection() {
-    return rsServices.getConnection();
+  /**
+   * Creates an object well-suited for the RegionServer to use in verifying active policies.
+   */
+  public ActivePolicyEnforcement getActivePolicies() {
+    return new ActivePolicyEnforcement(copyActivePolicyEnforcements());
   }
 
   /**
-   * Returns the collection of tables which have quota violation policies enforced on
-   * this RegionServer.
+   * Converts a map of table to {@link SpaceViolationPolicyEnforcement}s into
+   * {@link SpaceViolationPolicy}s.
    */
-  public synchronized Map<TableName,SpaceViolationPolicy> getActivePolicyEnforcements() throws IOException {
-    return new HashMap<>(this.enforcedPolicies);
-  }
-
-  /**
-   * Wrapper around {@link QuotaTableUtil#extractViolationPolicy(Result, Map)} for testing.
-   */
-  void extractViolationPolicy(Result result, Map<TableName,SpaceViolationPolicy> activePolicies) {
-    QuotaTableUtil.extractViolationPolicy(result, activePolicies);
+  public Map<TableName, SpaceViolationPolicy> getActivePoliciesAsMap() {
+    final Map<TableName, SpaceViolationPolicyEnforcement> enforcements =
+        copyActivePolicyEnforcements();
+    final Map<TableName, SpaceViolationPolicy> policies = new HashMap<>();
+    for (Entry<TableName, SpaceViolationPolicyEnforcement> entry : enforcements.entrySet()) {
+      final SpaceViolationPolicy policy = entry.getValue().getPolicy();
+      if (null != policy) {
+        policies.put(entry.getKey(), policy);
+      }
+    }
+    return policies;
   }
 
   /**
@@ -115,45 +123,60 @@ public class RegionServerSpaceQuotaManager {
   /**
    * Enforces the given violationPolicy on the given table in this RegionServer.
    */
-  synchronized void enforceViolationPolicy(
-      TableName tableName, SpaceViolationPolicy violationPolicy) {
+  public void enforceViolationPolicy(TableName tableName, SpaceViolationPolicy violationPolicy) {
     if (LOG.isTraceEnabled()) {
       LOG.trace(
           "Enabling violation policy enforcement on " + tableName
           + " with policy " + violationPolicy);
     }
-    // Enact the policy
-    enforceOnRegionServer(tableName, violationPolicy);
-    // Publicize our enacting of the policy
-    enforcedPolicies.put(tableName, violationPolicy);
-  }
-
-  /**
-   * Enacts the given violation policy on this table in the RegionServer.
-   */
-  void enforceOnRegionServer(TableName tableName, SpaceViolationPolicy violationPolicy) {
-    throw new RuntimeException();
+    // Construct this outside of the lock
+    final SpaceViolationPolicyEnforcement enforcement = factory.create(
+        getRegionServerServices(), tableName, violationPolicy);
+    // "Enables" the policy
+    synchronized (enforcedPolicies) {
+      enforcement.enable();
+      enforcedPolicies.put(tableName, enforcement);
+    }
   }
 
   /**
    * Disables enforcement on any violation policy on the given <code>tableName</code>.
    */
-  synchronized void disableViolationPolicyEnforcement(TableName tableName) {
+  public void disableViolationPolicyEnforcement(TableName tableName) {
     if (LOG.isTraceEnabled()) {
       LOG.trace("Disabling violation policy enforcement on " + tableName);
     }
-    disableOnRegionServer(tableName);
-    enforcedPolicies.remove(tableName);
+    // "Disables" the policy
+    synchronized (enforcedPolicies) {
+      SpaceViolationPolicyEnforcement enforcement = enforcedPolicies.remove(tableName);
+      if (null != enforcement) {
+        enforcement.disable();
+      }
+    }
   }
 
   /**
-   * Disables any violation policy on this table in the RegionServer.
+   * Returns the collection of tables which have quota violation policies enforced on
+   * this RegionServer.
    */
-  void disableOnRegionServer(TableName tableName) {
-    throw new RuntimeException();
+  Map<TableName,SpaceViolationPolicyEnforcement> copyActivePolicyEnforcements() {
+    synchronized (enforcedPolicies) {
+      return new HashMap<>(this.enforcedPolicies);
+    }
+  }
+
+  /**
+   * Wrapper around {@link QuotaTableUtil#extractViolationPolicy(Result, Map)} for testing.
+   */
+  void extractViolationPolicy(Result result, Map<TableName,SpaceViolationPolicy> activePolicies) {
+    QuotaTableUtil.extractViolationPolicy(result, activePolicies);
   }
 
   RegionServerServices getRegionServerServices() {
     return rsServices;
+  }
+
+  Connection getConnection() {
+    return rsServices.getConnection();
   }
 }

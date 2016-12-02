@@ -14,36 +14,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.hadoop.hbase.quotas.policies;
+package org.apache.hadoop.hbase.quotas;
 
-import org.apache.hadoop.hbase.client.Mutation;
-import org.apache.hadoop.hbase.quotas.SpaceLimitingException;
-import org.apache.hadoop.hbase.quotas.SpaceViolationPolicy;
+
+import org.apache.hadoop.hbase.classification.InterfaceAudience;
+import org.apache.hadoop.hbase.classification.InterfaceStability;
 
 /**
- * 
+ * An Exception that is thrown when a space quota is in violation.
  */
-public class NoWritesViolationPolicyEnforcement extends AbstractViolationPolicyEnforcement {
+@InterfaceAudience.Public
+@InterfaceStability.Evolving
+public class SpaceLimitingException extends QuotaExceededException {
+  private static final long serialVersionUID = 2319438922387583600L;
 
-  @Override
-  public void enable() {
-    // TODO Auto-generated method stub
-    
+  private final SpaceViolationPolicy policy;
+
+  public SpaceLimitingException(SpaceViolationPolicy policy, String msg) {
+    super(msg);
+    this.policy = policy;
   }
 
-  @Override
-  public void disable() {
-    // TODO Auto-generated method stub
-    
-  }
-
-  @Override
-  public void check(Mutation m) throws SpaceLimitingException {
-    throw new RuntimeException("Unimplemented");
-  }
-
-  @Override
-  public SpaceViolationPolicy getPolicy() {
-    return SpaceViolationPolicy.NO_WRITES;
+  /**
+   * Returns the violation policy in effect.
+   *
+   * @return The violation policy in effect.
+   */
+  public SpaceViolationPolicy getViolationPolicy() {
+    return this.policy;
   }
 }

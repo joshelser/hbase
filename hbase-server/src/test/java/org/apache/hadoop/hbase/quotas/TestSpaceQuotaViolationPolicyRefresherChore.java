@@ -16,6 +16,7 @@
  */
 package org.apache.hadoop.hbase.quotas;
 
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -30,6 +31,11 @@ import java.util.Map.Entry;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.quotas.policies.DisableTableViolationPolicyEnforcement;
+import org.apache.hadoop.hbase.quotas.policies.NoInsertsViolationPolicyEnforcement;
+import org.apache.hadoop.hbase.quotas.policies.NoWritesCompactionsViolationPolicyEnforcement;
+import org.apache.hadoop.hbase.quotas.policies.NoWritesViolationPolicyEnforcement;
+import org.apache.hadoop.hbase.quotas.policies.NoopViolationPolicyEnforcement;
 import org.apache.hadoop.hbase.regionserver.RegionServerServices;
 import org.junit.Before;
 import org.junit.Test;
@@ -63,9 +69,9 @@ public class TestSpaceQuotaViolationPolicyRefresherChore {
     policiesToEnforce.put(TableName.valueOf("table4"), SpaceViolationPolicy.NO_WRITES_COMPACTIONS);
 
     // No active enforcements
-    when(manager.getActivePolicyEnforcements()).thenReturn(Collections.emptyMap());
+    when(manager.copyActivePolicyEnforcements()).thenReturn(Collections.emptyMap());
     // Policies to enforce
-    when(manager.getEnforcedViolationPolicies()).thenReturn(policiesToEnforce);
+    when(manager.getViolationPoliciesToEnforce()).thenReturn(policiesToEnforce);
 
     chore.chore();
 
@@ -88,9 +94,9 @@ public class TestSpaceQuotaViolationPolicyRefresherChore {
     previousPolicies.put(TableName.valueOf("table4"), SpaceViolationPolicy.NO_WRITES);
 
     // No active enforcements
-    when(manager.getActivePolicyEnforcements()).thenReturn(previousPolicies);
+    when(manager.getActivePoliciesAsMap()).thenReturn(previousPolicies);
     // Policies to enforce
-    when(manager.getEnforcedViolationPolicies()).thenReturn(policiesToEnforce);
+    when(manager.getViolationPoliciesToEnforce()).thenReturn(policiesToEnforce);
 
     chore.chore();
 
@@ -114,9 +120,9 @@ public class TestSpaceQuotaViolationPolicyRefresherChore {
     previousPolicies.put(TableName.valueOf("table1"), SpaceViolationPolicy.NO_WRITES);
 
     // No active enforcements
-    when(manager.getActivePolicyEnforcements()).thenReturn(previousPolicies);
+    when(manager.getActivePoliciesAsMap()).thenReturn(previousPolicies);
     // Policies to enforce
-    when(manager.getEnforcedViolationPolicies()).thenReturn(policiesToEnforce);
+    when(manager.getViolationPoliciesToEnforce()).thenReturn(policiesToEnforce);
 
     chore.chore();
 
@@ -125,5 +131,31 @@ public class TestSpaceQuotaViolationPolicyRefresherChore {
     }
     verify(manager, never()).disableViolationPolicyEnforcement(TableName.valueOf("table1"));
   }
-  
+
+  @Test
+  public void testFilterNullPoliciesFromEnforcements() {
+    final Map<TableName, SpaceViolationPolicyEnforcement> enforcements = new HashMap<>();
+    final Map<TableName, SpaceViolationPolicy> expectedPolicies = new HashMap<>();
+    when(manager.copyActivePolicyEnforcements()).thenReturn(enforcements);
+    when(manager.getActivePoliciesAsMap()).thenCallRealMethod();
+
+    enforcements.put(TableName.valueOf("no_inserts"), new NoInsertsViolationPolicyEnforcement());
+    expectedPolicies.put(TableName.valueOf("no_inserts"), SpaceViolationPolicy.NO_INSERTS);
+
+    enforcements.put(TableName.valueOf("no_writes"), new NoWritesViolationPolicyEnforcement());
+    expectedPolicies.put(TableName.valueOf("no_writes"), SpaceViolationPolicy.NO_WRITES);
+
+    enforcements.put(TableName.valueOf("no_writes_compactions"),
+        new NoWritesCompactionsViolationPolicyEnforcement());
+    expectedPolicies.put(TableName.valueOf("no_writes_compactions"),
+        SpaceViolationPolicy.NO_WRITES_COMPACTIONS);
+
+    enforcements.put(TableName.valueOf("disable"), new DisableTableViolationPolicyEnforcement());
+    expectedPolicies.put(TableName.valueOf("disable"), SpaceViolationPolicy.DISABLE);
+
+    enforcements.put(TableName.valueOf("no_policy"), NoopViolationPolicyEnforcement.getInstance());
+
+    Map<TableName, SpaceViolationPolicy> actualPolicies = manager.getActivePoliciesAsMap();
+    assertEquals(expectedPolicies, actualPolicies);
+  }
 }

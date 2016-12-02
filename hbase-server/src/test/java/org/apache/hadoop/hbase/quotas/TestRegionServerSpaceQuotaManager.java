@@ -17,6 +17,7 @@
 package org.apache.hadoop.hbase.quotas;
 
 import static org.apache.hadoop.hbase.util.Bytes.toBytes;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -26,6 +27,7 @@ import static org.mockito.Mockito.when;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -37,6 +39,11 @@ import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.quotas.policies.DisableTableViolationPolicyEnforcement;
+import org.apache.hadoop.hbase.quotas.policies.NoInsertsViolationPolicyEnforcement;
+import org.apache.hadoop.hbase.quotas.policies.NoWritesCompactionsViolationPolicyEnforcement;
+import org.apache.hadoop.hbase.quotas.policies.NoWritesViolationPolicyEnforcement;
+import org.apache.hadoop.hbase.quotas.policies.NoopViolationPolicyEnforcement;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
@@ -60,7 +67,7 @@ public class TestRegionServerSpaceQuotaManager {
     quotaTable = mock(Table.class);
     scanner = mock(ResultScanner.class);
     // Call the real getActivePolicyEnforcements()
-    when(quotaManager.getActivePolicyEnforcements()).thenCallRealMethod();
+    when(quotaManager.getViolationPoliciesToEnforce()).thenCallRealMethod();
     // Mock out creating a scanner
     when(quotaManager.getConnection()).thenReturn(conn);
     when(conn.getTable(QuotaUtil.QUOTA_TABLE_NAME)).thenReturn(quotaTable);
@@ -83,7 +90,7 @@ public class TestRegionServerSpaceQuotaManager {
     results.add(Result.create(Collections.emptyList()));
     when(scanner.iterator()).thenReturn(results.iterator());
     try {
-      quotaManager.getActivePolicyEnforcements();
+      quotaManager.getViolationPoliciesToEnforce();
       fail("Expected an IOException, but did not receive one.");
     } catch (IOException e) {
       // Expected an error because we had no cells in the row.
@@ -99,7 +106,7 @@ public class TestRegionServerSpaceQuotaManager {
     results.add(Result.create(Collections.singletonList(c)));
     when(scanner.iterator()).thenReturn(results.iterator());
     try {
-      quotaManager.getActivePolicyEnforcements();
+      quotaManager.getViolationPoliciesToEnforce();
       fail("Expected an IOException, but did not receive one.");
     } catch (IOException e) {
       // Expected an error because we were missing the column we expected in this row.
@@ -114,11 +121,38 @@ public class TestRegionServerSpaceQuotaManager {
     results.add(Result.create(Collections.singletonList(c)));
     when(scanner.iterator()).thenReturn(results.iterator());
     try {
-      quotaManager.getActivePolicyEnforcements();
+      quotaManager.getViolationPoliciesToEnforce();
       fail("Expected an IOException, but did not receive one.");
     } catch (IOException e) {
       // We provided a garbage serialized protobuf message (empty byte array), this should
       // in turn throw an IOException
     }
+  }
+
+  @Test
+  public void testSpacePoliciesFromEnforcements() {
+    final Map<TableName, SpaceViolationPolicyEnforcement> enforcements = new HashMap<>();
+    final Map<TableName, SpaceViolationPolicy> expectedPolicies = new HashMap<>();
+    when(quotaManager.copyActivePolicyEnforcements()).thenReturn(enforcements);
+    when(quotaManager.getActivePoliciesAsMap()).thenCallRealMethod();
+
+    enforcements.put(TableName.valueOf("no_inserts"), new NoInsertsViolationPolicyEnforcement());
+    expectedPolicies.put(TableName.valueOf("no_inserts"), SpaceViolationPolicy.NO_INSERTS);
+
+    enforcements.put(TableName.valueOf("no_writes"), new NoWritesViolationPolicyEnforcement());
+    expectedPolicies.put(TableName.valueOf("no_writes"), SpaceViolationPolicy.NO_WRITES);
+
+    enforcements.put(TableName.valueOf("no_writes_compactions"),
+        new NoWritesCompactionsViolationPolicyEnforcement());
+    expectedPolicies.put(TableName.valueOf("no_writes_compactions"),
+        SpaceViolationPolicy.NO_WRITES_COMPACTIONS);
+
+    enforcements.put(TableName.valueOf("disable"), new DisableTableViolationPolicyEnforcement());
+    expectedPolicies.put(TableName.valueOf("disable"), SpaceViolationPolicy.DISABLE);
+
+    enforcements.put(TableName.valueOf("no_policy"), NoopViolationPolicyEnforcement.getInstance());
+
+    Map<TableName, SpaceViolationPolicy> actualPolicies = quotaManager.getActivePoliciesAsMap();
+    assertEquals(expectedPolicies, actualPolicies);
   }
 }

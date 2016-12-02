@@ -16,6 +16,8 @@
  */
 package org.apache.hadoop.hbase.quotas;
 
+import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.quotas.SpaceViolationPolicy;
 import org.apache.hadoop.hbase.regionserver.RegionServerServices;
 
@@ -29,7 +31,7 @@ public interface SpaceViolationPolicyEnforcement {
   /**
    * Initializes this instance.
    */
-  void initialize(RegionServerServices rss);
+  void initialize(RegionServerServices rss, TableName tableName);
 
   /**
    * Enables this policy.
@@ -40,4 +42,14 @@ public interface SpaceViolationPolicyEnforcement {
    * Disables this policy.
    */
   void disable();
+
+  /**
+   * Throws an exception when the policy disallows the given action.
+   */
+  void check(Mutation m) throws SpaceLimitingException;
+
+  /**
+   * Returns the {@link SpaceViolationPolicy} this enforcement is for.
+   */
+  SpaceViolationPolicy getPolicy();
 }

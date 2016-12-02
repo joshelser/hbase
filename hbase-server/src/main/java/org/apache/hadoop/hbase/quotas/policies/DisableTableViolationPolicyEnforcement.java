@@ -16,21 +16,31 @@
  */
 package org.apache.hadoop.hbase.quotas.policies;
 
+import org.apache.hadoop.hbase.client.Mutation;
+import org.apache.hadoop.hbase.quotas.SpaceLimitingException;
+import org.apache.hadoop.hbase.quotas.SpaceViolationPolicy;
+import org.apache.hadoop.hbase.quotas.SpaceViolationPolicyEnforcement;
+
 /**
- * 
+ * A {@link SpaceViolationPolicyEnforcement} which disables the table.
  */
 public class DisableTableViolationPolicyEnforcement extends AbstractViolationPolicyEnforcement {
 
   @Override
   public void enable() {
-    // TODO Auto-generated method stub
-    
   }
 
   @Override
   public void disable() {
-    // TODO Auto-generated method stub
-    
   }
-  
+
+  @Override
+  public void check(Mutation m) throws SpaceLimitingException {
+    throw new RuntimeException("Unimplemented");
+  }
+
+  @Override
+  public SpaceViolationPolicy getPolicy() {
+    return SpaceViolationPolicy.DISABLE;
+  }
 }

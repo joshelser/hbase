@@ -18,7 +18,8 @@ package org.apache.hadoop.hbase.quotas.policies;
 
 import java.util.Objects;
 
-import org.apache.hadoop.hbase.quota.SpaceViolationPolicyEnforcement;
+import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.quotas.SpaceViolationPolicyEnforcement;
 import org.apache.hadoop.hbase.regionserver.RegionServerServices;
 
 /**
@@ -27,9 +28,14 @@ import org.apache.hadoop.hbase.regionserver.RegionServerServices;
 public abstract class AbstractViolationPolicyEnforcement implements SpaceViolationPolicyEnforcement {
 
   RegionServerServices rss;
+  TableName tableName;
 
   public void setRegionServerServices(RegionServerServices rss) {
     this.rss = Objects.requireNonNull(rss);
+  }
+
+  public void setTableName(TableName tableName) {
+    this.tableName = tableName;
   }
 
   public RegionServerServices getRegionServerServices() {
@@ -37,7 +43,8 @@ public abstract class AbstractViolationPolicyEnforcement implements SpaceViolati
   }
 
   @Override
-  public void initialize(RegionServerServices rss) {
+  public void initialize(RegionServerServices rss, TableName tableName) {
     setRegionServerServices(rss);
+    setTableName(tableName);
   }
 }

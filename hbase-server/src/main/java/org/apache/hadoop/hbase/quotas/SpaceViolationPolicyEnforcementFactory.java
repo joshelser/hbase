@@ -16,7 +16,8 @@
  */
 package org.apache.hadoop.hbase.quotas;
 
-import org.apache.hadoop.hbase.quota.SpaceViolationPolicyEnforcement;
+import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.quotas.SpaceViolationPolicyEnforcement;
 import org.apache.hadoop.hbase.quotas.policies.DisableTableViolationPolicyEnforcement;
 import org.apache.hadoop.hbase.quotas.policies.NoInsertsViolationPolicyEnforcement;
 import org.apache.hadoop.hbase.quotas.policies.NoWritesCompactionsViolationPolicyEnforcement;
@@ -38,7 +39,7 @@ public class SpaceViolationPolicyEnforcementFactory {
   }
 
   public SpaceViolationPolicyEnforcement create(
-      RegionServerServices rss, SpaceViolationPolicy policy) {
+      RegionServerServices rss, TableName tableName, SpaceViolationPolicy policy) {
     SpaceViolationPolicyEnforcement enforcement;
     switch (policy) {
       case DISABLE:
@@ -56,7 +57,7 @@ public class SpaceViolationPolicyEnforcementFactory {
       default:
         throw new IllegalArgumentException("Unhandled SpaceViolationPolicy: " + policy);
     }
-    enforcement.initialize(rss);
+    enforcement.initialize(rss, tableName);
     return enforcement;
   }
 }
