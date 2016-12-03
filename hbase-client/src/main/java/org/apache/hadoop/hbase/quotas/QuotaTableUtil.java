@@ -52,7 +52,9 @@ import org.apache.hadoop.hbase.util.Strings;
  * <pre>
  *     ROW-KEY      FAM/QUAL        DATA
  *   n.&lt;namespace&gt; q:s         &lt;global-quotas&gt;
+ *   n.&lt;namespace&gt; u:du        &lt;size in bytes&gt;
  *   t.&lt;table&gt;     q:s         &lt;global-quotas&gt;
+ *   t.&lt;table&gt;     u:du        &lt;size in bytes&gt;
  *   u.&lt;user&gt;      q:s         &lt;global-quotas&gt;
  *   u.&lt;user&gt;      q:s.&lt;table&gt; &lt;table-quotas&gt;
  *   u.&lt;user&gt;      q:s.&lt;ns&gt;:   &lt;namespace-quotas&gt;
@@ -71,6 +73,7 @@ public class QuotaTableUtil {
   protected static final byte[] QUOTA_FAMILY_USAGE = Bytes.toBytes("u");
   protected static final byte[] QUOTA_QUALIFIER_SETTINGS = Bytes.toBytes("s");
   protected static final byte[] QUOTA_QUALIFIER_SETTINGS_PREFIX = Bytes.toBytes("s.");
+  protected static final byte[] QUOTA_QUALIFIER_DISKUSAGE = Bytes.toBytes("du");
   protected static final byte[] QUOTA_USER_ROW_KEY_PREFIX = Bytes.toBytes("u.");
   protected static final byte[] QUOTA_TABLE_ROW_KEY_PREFIX = Bytes.toBytes("t.");
   protected static final byte[] QUOTA_NAMESPACE_ROW_KEY_PREFIX = Bytes.toBytes("n.");
@@ -298,11 +301,16 @@ public class QuotaTableUtil {
    *  Quotas protobuf helpers
    */
   protected static Quotas quotasFromData(final byte[] data) throws IOException {
+    return quotasFromData(data, 0, data.length);
+  }
+
+  protected static Quotas quotasFromData(
+      final byte[] data, int offset, int length) throws IOException {
     int magicLen = ProtobufMagic.lengthOfPBMagic();
-    if (!ProtobufMagic.isPBMagicPrefix(data, 0, magicLen)) {
+    if (!ProtobufMagic.isPBMagicPrefix(data, offset, magicLen)) {
       throw new IOException("Missing pb magic prefix");
     }
-    return Quotas.parseFrom(new ByteArrayInputStream(data, magicLen, data.length - magicLen));
+    return Quotas.parseFrom(new ByteArrayInputStream(data, offset + magicLen, length - magicLen));
   }
 
   protected static byte[] quotasToData(final Quotas data) throws IOException {
@@ -316,6 +324,7 @@ public class QuotaTableUtil {
     boolean hasSettings = false;
     hasSettings |= quotas.hasThrottle();
     hasSettings |= quotas.hasBypassGlobals();
+    hasSettings |= quotas.hasSpace();
     return !hasSettings;
   }
 
