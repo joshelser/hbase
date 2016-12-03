@@ -23,6 +23,7 @@ import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.classification.InterfaceAudience;
 import org.apache.hadoop.hbase.classification.InterfaceStability;
 import org.apache.hadoop.hbase.quotas.policies.NoopViolationPolicyEnforcement;
+import org.apache.hadoop.hbase.regionserver.Region;
 
 /**
  * A class to ease dealing with tables that have and do not have violation policies
@@ -35,6 +36,17 @@ public class ActivePolicyEnforcement {
 
   public ActivePolicyEnforcement(Map<TableName,SpaceViolationPolicyEnforcement> activePolicies) {
     this.activePolicies = activePolicies;
+  }
+
+  /**
+   * Returns the proper {@link SpaceViolationPolicyEnforcement} implementation for the given table.
+   * If the given table does not have a violation policy enforced, a "no-op" policy will
+   * be returned which always allows an action.
+   *
+   * @see #getPolicyEnforcement(TableName)
+   */
+  public SpaceViolationPolicyEnforcement getPolicyEnforcement(Region r) {
+    return getPolicyEnforcement(Objects.requireNonNull(r).getTableDesc().getTableName());
   }
 
   /**

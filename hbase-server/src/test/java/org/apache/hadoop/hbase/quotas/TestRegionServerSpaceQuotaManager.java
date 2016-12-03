@@ -133,7 +133,7 @@ public class TestRegionServerSpaceQuotaManager {
   public void testSpacePoliciesFromEnforcements() {
     final Map<TableName, SpaceViolationPolicyEnforcement> enforcements = new HashMap<>();
     final Map<TableName, SpaceViolationPolicy> expectedPolicies = new HashMap<>();
-    when(quotaManager.copyActivePolicyEnforcements()).thenReturn(enforcements);
+    when(quotaManager.copyActiveEnforcements()).thenReturn(enforcements);
     when(quotaManager.getActivePoliciesAsMap()).thenCallRealMethod();
 
     enforcements.put(TableName.valueOf("no_inserts"), new NoInsertsViolationPolicyEnforcement());

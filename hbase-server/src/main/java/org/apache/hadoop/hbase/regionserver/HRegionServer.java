@@ -118,7 +118,6 @@ import org.apache.hadoop.hbase.procedure.RegionServerProcedureManagerHost;
 import org.apache.hadoop.hbase.quotas.FileSystemUtilizationChore;
 import org.apache.hadoop.hbase.quotas.RegionServerRpcQuotaManager;
 import org.apache.hadoop.hbase.quotas.RegionServerSpaceQuotaManager;
-import org.apache.hadoop.hbase.quotas.SpaceViolationPolicy;
 import org.apache.hadoop.hbase.regionserver.compactions.CompactionConfiguration;
 import org.apache.hadoop.hbase.regionserver.compactions.CompactionProgress;
 import org.apache.hadoop.hbase.regionserver.handler.CloseMetaHandler;
@@ -216,7 +215,7 @@ import sun.misc.SignalHandler;
 @InterfaceAudience.LimitedPrivate(HBaseInterfaceAudience.TOOLS)
 @SuppressWarnings({ "deprecation", "restriction" })
 public class HRegionServer extends HasThread implements
-    RegionServerServices, LastSequenceId, ConfigurationObserver, SpaceQuotaEnforcement {
+    RegionServerServices, LastSequenceId, ConfigurationObserver {
 
   private static final Log LOG = LogFactory.getLog(HRegionServer.class);
 
@@ -3667,15 +3666,5 @@ public class HRegionServer extends HasThread implements
   @Override
   public RegionServerSpaceQuotaManager getRegionServerSpaceQuotaManager() {
     return this.rsSpaceQuotaManager;
-  }
-
-  @Override
-  public void enforceViolation(TableName tableName, SpaceViolationPolicy policy) {
-    
-  }
-
-  @Override
-  public void disableViolation(TableName tableName) {
-    
   }
 }

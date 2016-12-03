@@ -76,8 +76,8 @@ public class RegionServerSpaceQuotaManager {
   /**
    * Creates an object well-suited for the RegionServer to use in verifying active policies.
    */
-  public ActivePolicyEnforcement getActivePolicies() {
-    return new ActivePolicyEnforcement(copyActivePolicyEnforcements());
+  public ActivePolicyEnforcement getActiveEnforcements() {
+    return new ActivePolicyEnforcement(copyActiveEnforcements());
   }
 
   /**
@@ -86,7 +86,7 @@ public class RegionServerSpaceQuotaManager {
    */
   public Map<TableName, SpaceViolationPolicy> getActivePoliciesAsMap() {
     final Map<TableName, SpaceViolationPolicyEnforcement> enforcements =
-        copyActivePolicyEnforcements();
+        copyActiveEnforcements();
     final Map<TableName, SpaceViolationPolicy> policies = new HashMap<>();
     for (Entry<TableName, SpaceViolationPolicyEnforcement> entry : enforcements.entrySet()) {
       final SpaceViolationPolicy policy = entry.getValue().getPolicy();
@@ -159,7 +159,7 @@ public class RegionServerSpaceQuotaManager {
    * Returns the collection of tables which have quota violation policies enforced on
    * this RegionServer.
    */
-  Map<TableName,SpaceViolationPolicyEnforcement> copyActivePolicyEnforcements() {
+  Map<TableName,SpaceViolationPolicyEnforcement> copyActiveEnforcements() {
     synchronized (enforcedPolicies) {
       return new HashMap<>(this.enforcedPolicies);
     }

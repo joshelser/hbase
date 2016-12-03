@@ -69,7 +69,7 @@ public class TestSpaceQuotaViolationPolicyRefresherChore {
     policiesToEnforce.put(TableName.valueOf("table4"), SpaceViolationPolicy.NO_WRITES_COMPACTIONS);
 
     // No active enforcements
-    when(manager.copyActivePolicyEnforcements()).thenReturn(Collections.emptyMap());
+    when(manager.copyActiveEnforcements()).thenReturn(Collections.emptyMap());
     // Policies to enforce
     when(manager.getViolationPoliciesToEnforce()).thenReturn(policiesToEnforce);
 
@@ -136,7 +136,7 @@ public class TestSpaceQuotaViolationPolicyRefresherChore {
   public void testFilterNullPoliciesFromEnforcements() {
     final Map<TableName, SpaceViolationPolicyEnforcement> enforcements = new HashMap<>();
     final Map<TableName, SpaceViolationPolicy> expectedPolicies = new HashMap<>();
-    when(manager.copyActivePolicyEnforcements()).thenReturn(enforcements);
+    when(manager.copyActiveEnforcements()).thenReturn(enforcements);
     when(manager.getActivePoliciesAsMap()).thenCallRealMethod();
 
     enforcements.put(TableName.valueOf("no_inserts"), new NoInsertsViolationPolicyEnforcement());
