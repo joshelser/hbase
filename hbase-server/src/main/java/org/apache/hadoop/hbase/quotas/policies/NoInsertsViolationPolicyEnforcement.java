@@ -16,28 +16,34 @@
  */
 package org.apache.hadoop.hbase.quotas.policies;
 
+import org.apache.hadoop.hbase.client.Append;
+import org.apache.hadoop.hbase.client.Increment;
 import org.apache.hadoop.hbase.client.Mutation;
+import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.quotas.SpaceLimitingException;
 import org.apache.hadoop.hbase.quotas.SpaceViolationPolicy;
+import org.apache.hadoop.hbase.quotas.SpaceViolationPolicyEnforcement;
 
 /**
- * 
+ * A {@link SpaceViolationPolicyEnforcement} which disallows any inserts to the table. The
+ * enforcement counterpart to {@link SpaceViolationPolicy#NO_INSERTS}.
  */
 public class NoInsertsViolationPolicyEnforcement extends AbstractViolationPolicyEnforcement {
 
   @Override
-  public void enable() {
-    
-  }
+  public void enable() {}
 
   @Override
-  public void disable() {
-    
-  }
+  public void disable() {}
 
   @Override
   public void check(Mutation m) throws SpaceLimitingException {
-    throw new RuntimeException("Unimplemented");
+    // Disallow all "new" data flowing into HBase, but allow Deletes (even though we know they will
+    // temporarily increase utilization).
+    if (m instanceof Append  || m instanceof Increment || m instanceof Put) {
+      throw new SpaceLimitingException(getPolicy(),
+          "A " + m.getClass().getSimpleName() + " is disallowed due to a space quota.");
+    }
   }
 
   @Override

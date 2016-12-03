@@ -16,6 +16,8 @@
  */
 package org.apache.hadoop.hbase.quotas;
 
+import java.io.IOException;
+
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.quotas.SpaceViolationPolicy;
@@ -36,12 +38,12 @@ public interface SpaceViolationPolicyEnforcement {
   /**
    * Enables this policy.
    */
-  void enable();
+  void enable() throws IOException;
 
   /**
    * Disables this policy.
    */
-  void disable();
+  void disable() throws IOException;
 
   /**
    * Throws an exception when the policy disallows the given action.

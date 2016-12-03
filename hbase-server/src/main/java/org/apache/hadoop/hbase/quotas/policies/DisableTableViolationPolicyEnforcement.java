@@ -16,27 +16,43 @@
  */
 package org.apache.hadoop.hbase.quotas.policies;
 
+import java.io.IOException;
+
+import org.apache.hadoop.hbase.TableNotDisabledException;
+import org.apache.hadoop.hbase.TableNotEnabledException;
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.quotas.SpaceLimitingException;
 import org.apache.hadoop.hbase.quotas.SpaceViolationPolicy;
 import org.apache.hadoop.hbase.quotas.SpaceViolationPolicyEnforcement;
 
 /**
- * A {@link SpaceViolationPolicyEnforcement} which disables the table.
+ * A {@link SpaceViolationPolicyEnforcement} which disables the table. The enforcement
+ * countepart to {@link SpaceViolationPolicy#DISABLE}.
  */
 public class DisableTableViolationPolicyEnforcement extends AbstractViolationPolicyEnforcement {
 
   @Override
-  public void enable() {
+  public void enable() throws IOException {
+    try {
+      getRegionServerServices().getClusterConnection().getAdmin().disableTable(getTableName());
+    } catch (TableNotEnabledException tnee) {
+      // The state we wanted it to be in.
+    }
   }
 
   @Override
-  public void disable() {
+  public void disable() throws IOException {
+    try {
+      getRegionServerServices().getClusterConnection().getAdmin().enableTable(getTableName());
+    } catch (TableNotDisabledException tnde) {
+      // The state we wanted it to be in
+    }
   }
 
   @Override
   public void check(Mutation m) throws SpaceLimitingException {
-    throw new RuntimeException("Unimplemented");
+    // If this policy is enacted, then the table is (or should be) disabled.
+    throw new SpaceLimitingException(getPolicy(), "This table is disabled due to violating a space quota.");
   }
 
   @Override

@@ -34,6 +34,8 @@ import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.regionserver.RegionServerServices;
 import org.apache.hadoop.hbase.util.Bytes;
 
+import com.google.common.annotations.VisibleForTesting;
+
 /**
  * A manager for filesystem space quotas in the RegionServer.
  *
@@ -52,7 +54,14 @@ public class RegionServerSpaceQuotaManager {
   private SpaceViolationPolicyEnforcementFactory factory;
 
   public RegionServerSpaceQuotaManager(RegionServerServices rsServices) {
+    this(rsServices, SpaceViolationPolicyEnforcementFactory.getInstance());
+  }
+
+  @VisibleForTesting
+  RegionServerSpaceQuotaManager(RegionServerServices rsServices, SpaceViolationPolicyEnforcementFactory factory) {
     this.rsServices = Objects.requireNonNull(rsServices);
+    this.factory = factory;
+    this.enforcedPolicies = new HashMap<>();
   }
 
   public synchronized void start() throws IOException {
@@ -60,10 +69,12 @@ public class RegionServerSpaceQuotaManager {
       LOG.info("Quota support disabled");
       return;
     }
-
-    spaceQuotaRefresher = new SpaceQuotaViolationPolicyRefresherChore(this);
-    enforcedPolicies = new HashMap<>();
-    factory = SpaceViolationPolicyEnforcementFactory.getInstance();
+    if (null != spaceQuotaRefresher) {
+      LOG.warn("SpaceQuotaViolationPolicyRefresherChore has already been started!");
+      return;
+    }
+    this.spaceQuotaRefresher = new SpaceQuotaViolationPolicyRefresherChore(this);
+    rsServices.getChoreService().scheduleChore(spaceQuotaRefresher);
   }
 
   public synchronized void stop() {
@@ -130,11 +141,17 @@ public class RegionServerSpaceQuotaManager {
           + " with policy " + violationPolicy);
     }
     // Construct this outside of the lock
-    final SpaceViolationPolicyEnforcement enforcement = factory.create(
+    final SpaceViolationPolicyEnforcement enforcement = getFactory().create(
         getRegionServerServices(), tableName, violationPolicy);
     // "Enables" the policy
     synchronized (enforcedPolicies) {
-      enforcement.enable();
+      try {
+        enforcement.enable();
+      } catch (IOException e) {
+        LOG.error("Failed to enable space violation policy for " + tableName
+            + ". This table will not enter violation.", e);
+        return;
+      }
       enforcedPolicies.put(tableName, enforcement);
     }
   }
@@ -150,7 +167,13 @@ public class RegionServerSpaceQuotaManager {
     synchronized (enforcedPolicies) {
       SpaceViolationPolicyEnforcement enforcement = enforcedPolicies.remove(tableName);
       if (null != enforcement) {
-        enforcement.disable();
+        try {
+          enforcement.disable();
+        } catch (IOException e) {
+          LOG.error("Failed to disable space violation policy for " + tableName
+              + ". This table will remain in violation.", e);
+          enforcedPolicies.put(tableName, enforcement);
+        }
       }
     }
   }
@@ -178,5 +201,9 @@ public class RegionServerSpaceQuotaManager {
 
   Connection getConnection() {
     return rsServices.getConnection();
+  }
+
+  SpaceViolationPolicyEnforcementFactory getFactory() {
+    return factory;
   }
 }

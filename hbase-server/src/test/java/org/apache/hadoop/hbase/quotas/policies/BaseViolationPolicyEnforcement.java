@@ -19,34 +19,16 @@ package org.apache.hadoop.hbase.quotas.policies;
 import org.apache.hadoop.hbase.client.Append;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Increment;
-import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.quotas.SpaceLimitingException;
-import org.apache.hadoop.hbase.quotas.SpaceViolationPolicy;
-import org.apache.hadoop.hbase.quotas.SpaceViolationPolicyEnforcement;
+import org.apache.hadoop.hbase.util.Bytes;
 
 /**
- * A {@link SpaceViolationPolicyEnforcement} implementation which disables all writes flowing
- * into HBase. The enforcement counterpart to {@link SpaceViolationPolicy#NO_WRITES}.
+ * 
  */
-public class NoWritesViolationPolicyEnforcement extends AbstractViolationPolicyEnforcement {
+public class BaseViolationPolicyEnforcement {
 
-  @Override
-  public void enable() {}
-
-  @Override
-  public void disable() {}
-
-  @Override
-  public void check(Mutation m) throws SpaceLimitingException {
-    if (m instanceof Append || m instanceof Delete || m instanceof Increment || m instanceof Put) {
-      throw new SpaceLimitingException(getPolicy(),
-          "A " + m.getClass().getSimpleName() + " is disallowed due to a space quota.");
-    }
-  }
-
-  @Override
-  public SpaceViolationPolicy getPolicy() {
-    return SpaceViolationPolicy.NO_WRITES;
-  }
+  static final Append APPEND = new Append(Bytes.toBytes("foo"));
+  static final Delete DELETE = new Delete(Bytes.toBytes("foo"));
+  static final Increment INCREMENT = new Increment(Bytes.toBytes("foo"));
+  static final Put PUT = new Put(Bytes.toBytes("foo"));
 }

@@ -42,6 +42,10 @@ public abstract class AbstractViolationPolicyEnforcement implements SpaceViolati
     return this.rss;
   }
 
+  public TableName getTableName() {
+    return this.tableName;
+  }
+
   @Override
   public void initialize(RegionServerServices rss, TableName tableName) {
     setRegionServerServices(rss);

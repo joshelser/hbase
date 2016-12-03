@@ -16,28 +16,25 @@
  */
 package org.apache.hadoop.hbase.quotas.policies;
 
-import org.apache.hadoop.hbase.client.Mutation;
-import org.apache.hadoop.hbase.quotas.SpaceLimitingException;
 import org.apache.hadoop.hbase.quotas.SpaceViolationPolicy;
+import org.apache.hadoop.hbase.quotas.SpaceViolationPolicyEnforcement;
 
 /**
- * 
+ * A {@link SpaceViolationPolicyEnforcement} implementation which disables all updates and
+ * compactions. The enforcement counterpart to {@link SpaceViolationPolicy#NO_WRITES_COMPACTIONS}.
  */
-public class NoWritesCompactionsViolationPolicyEnforcement extends AbstractViolationPolicyEnforcement {
+public class NoWritesCompactionsViolationPolicyEnforcement extends NoWritesViolationPolicyEnforcement {
 
   @Override
   public void enable() {
-    
+    //TODO
+    throw new RuntimeException("TODO How do we disable compactions?");
   }
 
   @Override
   public void disable() {
-    
-  }
-
-  @Override
-  public void check(Mutation m) throws SpaceLimitingException {
-    throw new RuntimeException("Unimplemented");
+    //TODO
+    throw new RuntimeException("TODO How do we enable compactions?");
   }
 
   @Override

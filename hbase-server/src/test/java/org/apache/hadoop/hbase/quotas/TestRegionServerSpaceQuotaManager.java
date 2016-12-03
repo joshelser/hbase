@@ -18,9 +18,12 @@ package org.apache.hadoop.hbase.quotas;
 
 import static org.apache.hadoop.hbase.util.Bytes.toBytes;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -44,6 +47,7 @@ import org.apache.hadoop.hbase.quotas.policies.NoInsertsViolationPolicyEnforceme
 import org.apache.hadoop.hbase.quotas.policies.NoWritesCompactionsViolationPolicyEnforcement;
 import org.apache.hadoop.hbase.quotas.policies.NoWritesViolationPolicyEnforcement;
 import org.apache.hadoop.hbase.quotas.policies.NoopViolationPolicyEnforcement;
+import org.apache.hadoop.hbase.regionserver.RegionServerServices;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
@@ -154,5 +158,51 @@ public class TestRegionServerSpaceQuotaManager {
 
     Map<TableName, SpaceViolationPolicy> actualPolicies = quotaManager.getActivePoliciesAsMap();
     assertEquals(expectedPolicies, actualPolicies);
+  }
+
+  @Test
+  public void testExceptionOnPolicyEnforcementEnable() throws Exception {
+    final TableName tableName = TableName.valueOf("foo");
+    final SpaceViolationPolicy policy = SpaceViolationPolicy.DISABLE;
+    RegionServerServices rss = mock(RegionServerServices.class);
+    SpaceViolationPolicyEnforcementFactory factory = mock(
+        SpaceViolationPolicyEnforcementFactory.class);
+    SpaceViolationPolicyEnforcement enforcement = mock(SpaceViolationPolicyEnforcement.class);
+    RegionServerSpaceQuotaManager realManager = new RegionServerSpaceQuotaManager(rss, factory);
+
+    when(factory.create(rss, tableName, policy)).thenReturn(enforcement);
+    doThrow(new IOException("Failed for test!")).when(enforcement).enable();
+
+    realManager.enforceViolationPolicy(tableName, policy);
+    Map<TableName, SpaceViolationPolicyEnforcement> enforcements =
+        realManager.copyActiveEnforcements();
+    assertTrue("Expected active enforcements to be empty, but were " + enforcements,
+        enforcements.isEmpty());
+  }
+
+  @Test
+  public void testExceptionOnPolicyEnforcementDisable() throws Exception {
+    final TableName tableName = TableName.valueOf("foo");
+    final SpaceViolationPolicy policy = SpaceViolationPolicy.DISABLE;
+    RegionServerServices rss = mock(RegionServerServices.class);
+    SpaceViolationPolicyEnforcementFactory factory = mock(
+        SpaceViolationPolicyEnforcementFactory.class);
+    SpaceViolationPolicyEnforcement enforcement = mock(SpaceViolationPolicyEnforcement.class);
+    RegionServerSpaceQuotaManager realManager = new RegionServerSpaceQuotaManager(rss, factory);
+
+    when(factory.create(rss, tableName, policy)).thenReturn(enforcement);
+    doNothing().when(enforcement).enable();
+    doThrow(new IOException("Failed for test!")).when(enforcement).disable();
+
+    // Enabling should work
+    realManager.enforceViolationPolicy(tableName, policy);
+    Map<TableName, SpaceViolationPolicyEnforcement> enforcements =
+        realManager.copyActiveEnforcements();
+    assertEquals(1, enforcements.size());
+
+    // If the disable fails, we should still treat it as "active"
+    realManager.disableViolationPolicyEnforcement(tableName);
+    enforcements = realManager.copyActiveEnforcements();
+    assertEquals(1, enforcements.size());
   }
 }
