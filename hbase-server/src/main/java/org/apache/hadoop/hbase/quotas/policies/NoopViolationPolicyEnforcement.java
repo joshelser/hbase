@@ -52,4 +52,9 @@ public class NoopViolationPolicyEnforcement implements SpaceViolationPolicyEnfor
   public SpaceViolationPolicy getPolicy() {
     return null;
   }
+
+  @Override
+  public boolean areCompactionsDisabled() {
+    return false;
+  }
 }

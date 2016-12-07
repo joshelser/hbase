@@ -16,6 +16,10 @@
  */
 package org.apache.hadoop.hbase.quotas.policies;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.hbase.quotas.SpaceViolationPolicy;
 import org.apache.hadoop.hbase.quotas.SpaceViolationPolicyEnforcement;
 
@@ -24,21 +28,33 @@ import org.apache.hadoop.hbase.quotas.SpaceViolationPolicyEnforcement;
  * compactions. The enforcement counterpart to {@link SpaceViolationPolicy#NO_WRITES_COMPACTIONS}.
  */
 public class NoWritesCompactionsViolationPolicyEnforcement extends NoWritesViolationPolicyEnforcement {
+  private static final Log LOG = LogFactory.getLog(NoWritesCompactionsViolationPolicyEnforcement.class);
+
+  private AtomicBoolean disableCompactions = new AtomicBoolean(false); 
 
   @Override
-  public void enable() {
-    //TODO
-    throw new RuntimeException("TODO How do we disable compactions?");
+  public synchronized void enable() {
+    boolean ret = disableCompactions.compareAndSet(false, true);
+    if (!ret && LOG.isTraceEnabled()) {
+      LOG.trace("Compactions were already disabled upon enabling the policy");
+    }
   }
 
   @Override
-  public void disable() {
-    //TODO
-    throw new RuntimeException("TODO How do we enable compactions?");
+  public synchronized void disable() {
+    boolean ret = disableCompactions.compareAndSet(true, false);
+    if (!ret && LOG.isTraceEnabled()) {
+      LOG.trace("Compactions were already enabled upon disabling the policy");
+    }
   }
 
   @Override
   public SpaceViolationPolicy getPolicy() {
     return SpaceViolationPolicy.NO_WRITES_COMPACTIONS;
+  }
+
+  @Override
+  public boolean areCompactionsDisabled() {
+    return disableCompactions.get();
   }
 }

@@ -24,6 +24,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.hbase.DoNotRetryIOException;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Append;
@@ -169,6 +171,30 @@ public class TestSpaceQuotas {
     writeUntilViolationAndVerifyViolation(SpaceViolationPolicy.NO_WRITES, d);
   }
 
+  @Test
+  public void testNoCompactions() throws Exception {
+    Put p = new Put(Bytes.toBytes("to_reject"));
+    p.addColumn(Bytes.toBytes(SpaceQuotaHelperForTests.F1), Bytes.toBytes("to"), Bytes.toBytes("reject"));
+    final TableName tn = writeUntilViolationAndVerifyViolation(
+        SpaceViolationPolicy.NO_WRITES_COMPACTIONS, p);
+    // We know the policy is active at this point
+
+    // Major compactions should be rejected
+    try {
+      TEST_UTIL.getAdmin().majorCompact(tn);
+      fail("Expected that invoking the compaction should throw an Exception");
+    } catch (DoNotRetryIOException e) {
+      // Expected!
+    }
+    // Minor compactions should also be rejected.
+    try {
+      TEST_UTIL.getAdmin().compact(tn);
+      fail("Expected that invoking the compaction should throw an Exception");
+    } catch (DoNotRetryIOException e) {
+      // Expected!
+    }
+  }
+
   private TableName writeUntilViolation(SpaceViolationPolicy policyToViolate) throws Exception {
     TableName tn = helper.createTableWithRegions(10);
 
@@ -185,7 +211,7 @@ public class TestSpaceQuotas {
     return tn;
   }
 
-  private void writeUntilViolationAndVerifyViolation(SpaceViolationPolicy policyToViolate, Mutation m) throws Exception {
+  private TableName writeUntilViolationAndVerifyViolation(SpaceViolationPolicy policyToViolate, Mutation m) throws Exception {
     final TableName tn = writeUntilViolation(policyToViolate);
 
     // But let's try a few times to get the exception before failing
@@ -224,5 +250,7 @@ public class TestSpaceQuotas {
       }
     }
     assertTrue("Expected to see an exception writing data to a table exceeding its quota", sawError);
+
+    return tn;
   }
 }

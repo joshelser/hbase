@@ -179,12 +179,33 @@ public class RegionServerSpaceQuotaManager {
   }
 
   /**
+   * Returns whether or not compactions should be disabled for the given <code>tableName</code> per
+   * a space quota violation policy.
+   *
+   * @param tableName The table to check
+   * @return True if compactions should be disabled for the table, false otherwise.
+   */
+  public boolean areCompactionsDisabled(TableName tableName) {
+    SpaceViolationPolicyEnforcement enforcement = getEnforcement(tableName);
+    if (null != enforcement) {
+      return enforcement.areCompactionsDisabled();
+    }
+    return false;
+  }
+
+  /**
    * Returns the collection of tables which have quota violation policies enforced on
    * this RegionServer.
    */
   Map<TableName,SpaceViolationPolicyEnforcement> copyActiveEnforcements() {
     synchronized (enforcedPolicies) {
       return new HashMap<>(this.enforcedPolicies);
+    }
+  }
+
+  private SpaceViolationPolicyEnforcement getEnforcement(TableName tableName) {
+    synchronized (enforcedPolicies) {
+      return this.enforcedPolicies.get(Objects.requireNonNull(tableName));
     }
   }
 

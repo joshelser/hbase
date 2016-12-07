@@ -351,6 +351,14 @@ public class CompactSplitThread implements CompactionRequestor, PropagatingConfi
       if (compaction == null) return null; // message logged inside
     }
 
+    if (this.server.getRegionServerSpaceQuotaManager().areCompactionsDisabled(r.getTableDesc().getTableName())) {
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Ignoring compaction request for " + r + " as an active space quota violation "
+            + " policy disallows compactions.");
+      }
+      return null;
+    }
+
     // We assume that most compactions are small. So, put system compactions into small
     // pool; we will do selection there, and move to large pool if necessary.
     ThreadPoolExecutor pool = (selectNow && s.throttleCompaction(compaction.getRequest().getSize()))

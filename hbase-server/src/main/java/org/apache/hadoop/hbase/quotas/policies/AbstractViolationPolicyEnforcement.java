@@ -51,4 +51,9 @@ public abstract class AbstractViolationPolicyEnforcement implements SpaceViolati
     setRegionServerServices(rss);
     setTableName(tableName);
   }
+
+  @Override
+  public boolean areCompactionsDisabled() {
+    return false;
+  }
 }

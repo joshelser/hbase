@@ -1435,6 +1435,11 @@ public class RSRpcServices implements HBaseRPCErrorHandler,
       checkOpen();
       requestCount.increment();
       Region region = getRegion(request.getRegion());
+      if (this.regionServer.getRegionServerSpaceQuotaManager().areCompactionsDisabled(
+          region.getTableDesc().getTableName())) {
+        throw new DoNotRetryIOException("Compactions on this region are "
+            + "disabled due to a space quota violation.");
+      }
       region.startRegionOperation(Operation.COMPACT_REGION);
       LOG.info("Compacting " + region.getRegionInfo().getRegionNameAsString());
       boolean major = false;

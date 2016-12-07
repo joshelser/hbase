@@ -54,4 +54,9 @@ public interface SpaceViolationPolicyEnforcement {
    * Returns the {@link SpaceViolationPolicy} this enforcement is for.
    */
   SpaceViolationPolicy getPolicy();
+
+  /**
+   * Returns whether or not compactions on this table should be disabled.
+   */
+  boolean areCompactionsDisabled();
 }
