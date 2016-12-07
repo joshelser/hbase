@@ -41,7 +41,7 @@ public class NoWritesViolationPolicyEnforcement extends AbstractViolationPolicyE
   public void check(Mutation m) throws SpaceLimitingException {
     if (m instanceof Append || m instanceof Delete || m instanceof Increment || m instanceof Put) {
       throw new SpaceLimitingException(getPolicy(),
-          "A " + m.getClass().getSimpleName() + " is disallowed due to a space quota.");
+          m.getClass().getSimpleName() + "s are disallowed due to a space quota.");
     }
   }
 

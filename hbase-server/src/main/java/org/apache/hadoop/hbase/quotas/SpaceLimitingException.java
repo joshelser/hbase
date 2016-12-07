@@ -17,6 +17,8 @@
 package org.apache.hadoop.hbase.quotas;
 
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.hbase.classification.InterfaceAudience;
 import org.apache.hadoop.hbase.classification.InterfaceStability;
 
@@ -27,8 +29,25 @@ import org.apache.hadoop.hbase.classification.InterfaceStability;
 @InterfaceStability.Evolving
 public class SpaceLimitingException extends QuotaExceededException {
   private static final long serialVersionUID = 2319438922387583600L;
+  private static final Log LOG = LogFactory.getLog(SpaceLimitingException.class);
+  private static final String MESSAGE_PREFIX = SpaceLimitingException.class.getName() + ": ";
 
   private final SpaceViolationPolicy policy;
+
+  public SpaceLimitingException(String msg) {
+    super(parseMessage(msg));
+
+    // Hack around ResponseConverter expecting to invoke a single-arg String constructor on this class
+    if (null != msg) {
+      for (SpaceViolationPolicy definedPolicy : SpaceViolationPolicy.values()) {
+        if (msg.indexOf(definedPolicy.name()) != -1) {
+          policy = definedPolicy;
+          return;
+        }
+      }
+    }
+    policy = null;
+  }
 
   public SpaceLimitingException(SpaceViolationPolicy policy, String msg) {
     super(msg);
@@ -42,5 +61,27 @@ public class SpaceLimitingException extends QuotaExceededException {
    */
   public SpaceViolationPolicy getViolationPolicy() {
     return this.policy;
+  }
+
+  private static String parseMessage(String originalMessage) {
+    // Serialization of the exception places a duplicate class name. Try to strip that off if it exists. Best effort...
+    // Looks something like "org.apache.hadoop.hbase.quotas.SpaceLimitingException: NO_INSERTS A Put is disallowed due to a space quota."
+    if (null != originalMessage && originalMessage.startsWith(MESSAGE_PREFIX)) {
+      // If it starts with the class name, rip off the policy too.
+      try {
+        int index = originalMessage.indexOf(' ', MESSAGE_PREFIX.length());
+        return originalMessage.substring(index + 1);
+      } catch (Exception e) {
+        if (LOG.isTraceEnabled()) {
+          LOG.trace("Failed to trim exception message", e);
+        }
+      }
+    }
+    return originalMessage;
+  }
+
+  @Override
+  public String getMessage() {
+    return (null == policy ? "(unknown policy)" : policy.name()) + " " + super.getMessage();
   }
 }

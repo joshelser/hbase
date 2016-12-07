@@ -18,6 +18,8 @@ package org.apache.hadoop.hbase.quotas;
 
 import java.io.IOException;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.Delete;
@@ -28,6 +30,7 @@ import org.apache.hadoop.hbase.client.Table;
  * A {@link SpaceQuotaViolationNotifier} which uses the hbase:quota table.
  */
 public class TableSpaceQuotaViolationNotifier implements SpaceQuotaViolationNotifier {
+  private static final Log LOG = LogFactory.getLog(TableSpaceQuotaViolationNotifier.class);
 
   private Connection conn;
 
@@ -36,6 +39,9 @@ public class TableSpaceQuotaViolationNotifier implements SpaceQuotaViolationNoti
       TableName tableName, SpaceViolationPolicy violationPolicy) throws IOException {
     final Put p = QuotaTableUtil.enableViolationPolicy(tableName, violationPolicy);
     try (Table quotaTable = conn.getTable(QuotaTableUtil.QUOTA_TABLE_NAME)) {
+      if (LOG.isTraceEnabled()) {
+        LOG.trace("Persisting the enabling of a space quota violation policy " + violationPolicy + " for " + tableName);
+      }
       quotaTable.put(p);
     }
   }
@@ -44,6 +50,9 @@ public class TableSpaceQuotaViolationNotifier implements SpaceQuotaViolationNoti
   public void transitionTableToObservance(TableName tableName) throws IOException {
     final Delete d = QuotaTableUtil.removeViolationPolicy(tableName);
     try (Table quotaTable = conn.getTable(QuotaTableUtil.QUOTA_TABLE_NAME)) {
+      if (LOG.isTraceEnabled()) {
+        LOG.trace("Persisting the disabling of a space quota violation policy for " + tableName);
+      }
       quotaTable.delete(d);
     }
   }

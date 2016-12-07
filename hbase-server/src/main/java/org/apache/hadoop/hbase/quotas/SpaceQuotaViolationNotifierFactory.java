@@ -33,7 +33,7 @@ public class SpaceQuotaViolationNotifierFactory {
       new SpaceQuotaViolationNotifierFactory();
 
   public static final String VIOLATION_NOTIFIER_KEY = "hbase.master.quota.violation.notifier.impl";
-  public static final Class<? extends SpaceQuotaViolationNotifier> VIOLATION_NOTIFIER_DEFAULT = SpaceQuotaViolationNotifierForTest.class;
+  public static final Class<? extends SpaceQuotaViolationNotifier> VIOLATION_NOTIFIER_DEFAULT = TableSpaceQuotaViolationNotifier.class;
 
   // Private
   private SpaceQuotaViolationNotifierFactory() {}

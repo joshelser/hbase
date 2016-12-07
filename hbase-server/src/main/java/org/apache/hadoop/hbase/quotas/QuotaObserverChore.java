@@ -103,6 +103,9 @@ public class QuotaObserverChore extends ScheduledChore {
   @Override
   protected void chore() {
     try {
+      if (LOG.isTraceEnabled()) {
+        LOG.trace("Refreshing space quotas in RegionServer");
+      }
       _chore();
     } catch (IOException e) {
       LOG.warn("Failed to process quota reports and update quota violation state. Will retry.", e);
@@ -521,12 +524,12 @@ public class QuotaObserverChore extends ScheduledChore {
         if (ratioReported < percentRegionsReportedThreshold) {
           if (LOG.isTraceEnabled()) {
             LOG.trace("Filtering " + table + " because " + reportedRegionsInQuota  + " of " +
-                numRegionsInTable + " were reported.");
+                numRegionsInTable + " regions were reported.");
           }
           tablesToRemove.add(table);
         } else if (LOG.isTraceEnabled()) {
           LOG.trace("Retaining " + table + " because " + reportedRegionsInQuota  + " of " +
-              numRegionsInTable + " were reported.");
+              numRegionsInTable + " regions were reported.");
         }
       }
       for (TableName tableToRemove : tablesToRemove) {
