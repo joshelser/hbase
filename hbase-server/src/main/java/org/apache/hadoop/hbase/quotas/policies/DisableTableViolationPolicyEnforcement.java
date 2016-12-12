@@ -18,6 +18,8 @@ package org.apache.hadoop.hbase.quotas.policies;
 
 import java.io.IOException;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.hbase.TableNotDisabledException;
 import org.apache.hadoop.hbase.TableNotEnabledException;
 import org.apache.hadoop.hbase.client.Mutation;
@@ -30,11 +32,18 @@ import org.apache.hadoop.hbase.quotas.SpaceViolationPolicyEnforcement;
  * countepart to {@link SpaceViolationPolicy#DISABLE}.
  */
 public class DisableTableViolationPolicyEnforcement extends AbstractViolationPolicyEnforcement {
+  private static final Log LOG = LogFactory.getLog(DisableTableViolationPolicyEnforcement.class);
 
   @Override
   public void enable() throws IOException {
     try {
+      if (LOG.isTraceEnabled()) {
+        LOG.trace("Starting disable of " + getTableName());
+      }
       getRegionServerServices().getClusterConnection().getAdmin().disableTable(getTableName());
+      if (LOG.isTraceEnabled()) {
+        LOG.trace("Disable is complete for " + getTableName());
+      }
     } catch (TableNotEnabledException tnee) {
       // The state we wanted it to be in.
     }
@@ -43,7 +52,13 @@ public class DisableTableViolationPolicyEnforcement extends AbstractViolationPol
   @Override
   public void disable() throws IOException {
     try {
+      if (LOG.isTraceEnabled()) {
+        LOG.trace("Starting enable of " + getTableName());
+      }
       getRegionServerServices().getClusterConnection().getAdmin().enableTable(getTableName());
+      if (LOG.isTraceEnabled()) {
+        LOG.trace("Enable is complete for " + getTableName());
+      }
     } catch (TableNotDisabledException tnde) {
       // The state we wanted it to be in
     }

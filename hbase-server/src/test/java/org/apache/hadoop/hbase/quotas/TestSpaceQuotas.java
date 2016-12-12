@@ -16,6 +16,7 @@
  */
 package org.apache.hadoop.hbase.quotas;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -24,10 +25,10 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.hbase.DoNotRetryIOException;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Append;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.Delete;
@@ -38,6 +39,7 @@ import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.security.AccessDeniedException;
 import org.apache.hadoop.hbase.testclassification.LargeTests;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.util.StringUtils;
@@ -113,14 +115,16 @@ public class TestSpaceQuotas {
   @Test
   public void testNoInsertsWithPut() throws Exception {
     Put p = new Put(Bytes.toBytes("to_reject"));
-    p.addColumn(Bytes.toBytes(SpaceQuotaHelperForTests.F1), Bytes.toBytes("to"), Bytes.toBytes("reject"));
+    p.addColumn(
+        Bytes.toBytes(SpaceQuotaHelperForTests.F1), Bytes.toBytes("to"), Bytes.toBytes("reject"));
     writeUntilViolationAndVerifyViolation(SpaceViolationPolicy.NO_INSERTS, p);
   }
 
   @Test
   public void testNoInsertsWithAppend() throws Exception {
     Append a = new Append(Bytes.toBytes("to_reject"));
-    a.add(Bytes.toBytes(SpaceQuotaHelperForTests.F1), Bytes.toBytes("to"), Bytes.toBytes("reject"));
+    a.add(
+        Bytes.toBytes(SpaceQuotaHelperForTests.F1), Bytes.toBytes("to"), Bytes.toBytes("reject"));
     writeUntilViolationAndVerifyViolation(SpaceViolationPolicy.NO_INSERTS, a);
   }
 
@@ -147,14 +151,16 @@ public class TestSpaceQuotas {
   @Test
   public void testNoWritesWithPut() throws Exception {
     Put p = new Put(Bytes.toBytes("to_reject"));
-    p.addColumn(Bytes.toBytes(SpaceQuotaHelperForTests.F1), Bytes.toBytes("to"), Bytes.toBytes("reject"));
+    p.addColumn(
+        Bytes.toBytes(SpaceQuotaHelperForTests.F1), Bytes.toBytes("to"), Bytes.toBytes("reject"));
     writeUntilViolationAndVerifyViolation(SpaceViolationPolicy.NO_WRITES, p);
   }
 
   @Test
   public void testNoWritesWithAppend() throws Exception {
     Append a = new Append(Bytes.toBytes("to_reject"));
-    a.add(Bytes.toBytes(SpaceQuotaHelperForTests.F1), Bytes.toBytes("to"), Bytes.toBytes("reject"));
+    a.add(
+        Bytes.toBytes(SpaceQuotaHelperForTests.F1), Bytes.toBytes("to"), Bytes.toBytes("reject"));
     writeUntilViolationAndVerifyViolation(SpaceViolationPolicy.NO_WRITES, a);
   }
 
@@ -174,7 +180,8 @@ public class TestSpaceQuotas {
   @Test
   public void testNoCompactions() throws Exception {
     Put p = new Put(Bytes.toBytes("to_reject"));
-    p.addColumn(Bytes.toBytes(SpaceQuotaHelperForTests.F1), Bytes.toBytes("to"), Bytes.toBytes("reject"));
+    p.addColumn(
+        Bytes.toBytes(SpaceQuotaHelperForTests.F1), Bytes.toBytes("to"), Bytes.toBytes("reject"));
     final TableName tn = writeUntilViolationAndVerifyViolation(
         SpaceViolationPolicy.NO_WRITES_COMPACTIONS, p);
     // We know the policy is active at this point
@@ -192,6 +199,32 @@ public class TestSpaceQuotas {
       fail("Expected that invoking the compaction should throw an Exception");
     } catch (DoNotRetryIOException e) {
       // Expected!
+    }
+  }
+
+  @Test
+  public void testNoEnableAfterDisablePolicy() throws Exception {
+    Put p = new Put(Bytes.toBytes("to_reject"));
+    p.addColumn(
+        Bytes.toBytes(SpaceQuotaHelperForTests.F1), Bytes.toBytes("to"), Bytes.toBytes("reject"));
+    final TableName tn = writeUntilViolation(SpaceViolationPolicy.DISABLE);
+    final Admin admin = TEST_UTIL.getAdmin();
+    // Disabling a table relies on some external action (over the other policies), so wait a bit
+    // more than the other tests.
+    for (int i = 0; i < NUM_RETRIES * 2; i++) {
+      if (admin.isTableEnabled(tn)) {
+        LOG.info(tn + " is still enabled, expecting it to be disabled. Will wait and re-check.");
+        Thread.sleep(2000);
+      }
+    }
+    assertFalse(tn + " is still enabled but it should be disabled", admin.isTableEnabled(tn));
+    try {
+      admin.enableTable(tn);
+    } catch (AccessDeniedException e) {
+      String exceptionContents = StringUtils.stringifyException(e);
+      final String expectedText = "violated space quota";
+      assertTrue("Expected the exception to contain " + expectedText + ", but was: "
+          + exceptionContents, exceptionContents.contains(expectedText));
     }
   }
 

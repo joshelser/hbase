@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map.Entry;
 
 import org.apache.commons.logging.Log;
@@ -50,7 +51,7 @@ public class RegionServerSpaceQuotaManager {
   private final RegionServerServices rsServices;
 
   private SpaceQuotaViolationPolicyRefresherChore spaceQuotaRefresher;
-  private Map<TableName,SpaceViolationPolicyEnforcement> enforcedPolicies;
+  private ConcurrentHashMap<TableName,SpaceViolationPolicyEnforcement> enforcedPolicies;
   private SpaceViolationPolicyEnforcementFactory factory;
 
   public RegionServerSpaceQuotaManager(RegionServerServices rsServices) {
@@ -61,7 +62,7 @@ public class RegionServerSpaceQuotaManager {
   RegionServerSpaceQuotaManager(RegionServerServices rsServices, SpaceViolationPolicyEnforcementFactory factory) {
     this.rsServices = Objects.requireNonNull(rsServices);
     this.factory = factory;
-    this.enforcedPolicies = new HashMap<>();
+    this.enforcedPolicies = new ConcurrentHashMap<>();
   }
 
   public synchronized void start() throws IOException {
@@ -144,6 +145,7 @@ public class RegionServerSpaceQuotaManager {
     final SpaceViolationPolicyEnforcement enforcement = getFactory().create(
         getRegionServerServices(), tableName, violationPolicy);
     // "Enables" the policy
+    // TODO Should this synchronize on the actual table name instead of the map?
     synchronized (enforcedPolicies) {
       try {
         enforcement.enable();
@@ -164,6 +166,7 @@ public class RegionServerSpaceQuotaManager {
       LOG.trace("Disabling violation policy enforcement on " + tableName);
     }
     // "Disables" the policy
+    // TODO Should this synchronize on the actual table name instead of the map?
     synchronized (enforcedPolicies) {
       SpaceViolationPolicyEnforcement enforcement = enforcedPolicies.remove(tableName);
       if (null != enforcement) {
@@ -198,15 +201,13 @@ public class RegionServerSpaceQuotaManager {
    * this RegionServer.
    */
   Map<TableName,SpaceViolationPolicyEnforcement> copyActiveEnforcements() {
-    synchronized (enforcedPolicies) {
-      return new HashMap<>(this.enforcedPolicies);
-    }
+    // Allows reads to happen concurrently (or while the map is being updated)
+    return new HashMap<>(this.enforcedPolicies);
   }
 
   private SpaceViolationPolicyEnforcement getEnforcement(TableName tableName) {
-    synchronized (enforcedPolicies) {
-      return this.enforcedPolicies.get(Objects.requireNonNull(tableName));
-    }
+    // Allows reads to happen concurrently (or while the map is being updated)
+    return this.enforcedPolicies.get(Objects.requireNonNull(tableName));
   }
 
   /**
