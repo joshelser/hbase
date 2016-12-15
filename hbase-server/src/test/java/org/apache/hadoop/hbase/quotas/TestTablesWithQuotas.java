@@ -114,7 +114,7 @@ public class TestTablesWithQuotas {
       }
 
       @Override
-      int getNumReportedRegions(TableName table, QuotaViolationStore<TableName> tableStore) {
+      int getNumReportedRegions(TableName table, QuotaSnapshotStore<TableName> tableStore) {
         return reportedRegions.get(table);
       }
     };
@@ -177,13 +177,13 @@ public class TestTablesWithQuotas {
 
     QuotaObserverChore chore = mock(QuotaObserverChore.class);
     Map<HRegionInfo,Long> regionUsage = new HashMap<>();
-    TableQuotaViolationStore store = new TableQuotaViolationStore(conn, chore, regionUsage);
+    TableQuotaSnapshotStore store = new TableQuotaSnapshotStore(conn, chore, regionUsage);
 
     // A super dirty hack to verify that, after getting no regions for our table,
     // we bail out and start processing the next element (which there is none).
     final TablesWithQuotas tables = new TablesWithQuotas(conn, conf) {
       @Override
-      int getNumReportedRegions(TableName table, QuotaViolationStore<TableName> tableStore) {
+      int getNumReportedRegions(TableName table, QuotaSnapshotStore<TableName> tableStore) {
         throw new RuntimeException("Should should not reach here");
       }
     };

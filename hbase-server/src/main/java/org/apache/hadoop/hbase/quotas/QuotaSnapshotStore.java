@@ -20,12 +20,13 @@ import java.io.IOException;
 import java.util.Map.Entry;
 
 import org.apache.hadoop.hbase.HRegionInfo;
+import org.apache.hadoop.hbase.quotas.SpaceQuotaSnapshot.SpaceQuotaStatus;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceQuota;
 
 /**
  * A common interface for computing quota observance/violation for tables or namespaces.
  */
-public interface QuotaViolationStore<T> {
+public interface QuotaSnapshotStore<T> {
 
   /**
    * The current state of a table with respect to the policy set forth by a quota.
@@ -36,6 +37,11 @@ public interface QuotaViolationStore<T> {
   }
 
   /**
+   * Singleton to represent a table without a quota defined. It is never in violation.
+   */
+  public static final SpaceQuotaSnapshot NO_QUOTA = new SpaceQuotaSnapshot(SpaceQuotaStatus.notInViolation(), -1, -1);
+
+  /**
    * Fetch the Quota for the given table. May be null.
    */
   SpaceQuota getSpaceQuota(T subject) throws IOException;
@@ -43,12 +49,12 @@ public interface QuotaViolationStore<T> {
   /**
    * Returns the current {@link ViolationState} for the given <code>subject</code>.
    */
-  ViolationState getCurrentState(T subject);
+  SpaceQuotaSnapshot getCurrentState(T subject);
 
   /**
    * Computes the target {@link ViolationState} for the given <code>subject</code>.
    */
-  ViolationState getTargetState(T subject, SpaceQuota spaceQuota);
+  SpaceQuotaSnapshot getTargetState(T subject, SpaceQuota spaceQuota);
 
   /**
    * Filters the provided <code>regions</code>, returning those which match the given
@@ -61,5 +67,5 @@ public interface QuotaViolationStore<T> {
   /**
    * Sets the current {@link ViolationState} for the <code>subject</code>.
    */
-  void setCurrentState(T subject, ViolationState state);
+  void setCurrentState(T subject, SpaceQuotaSnapshot state);
 }

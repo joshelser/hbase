@@ -868,9 +868,11 @@ public class HMaster extends HRegionServer implements MasterServices {
     status.setStatus("Starting quota manager");
     initQuotaManager();
     this.spaceQuotaViolationNotifier = createQuotaViolationNotifier();
-    this.quotaObserverChore = new QuotaObserverChore(this);
-    // Start the chore to read the region FS space reports and act on them
-    getChoreService().scheduleChore(quotaObserverChore);
+    if (QuotaUtil.isQuotaEnabled(conf)) {
+      this.quotaObserverChore = new QuotaObserverChore(this);
+      // Start the chore to read the region FS space reports and act on them
+      getChoreService().scheduleChore(quotaObserverChore);
+    }
 
     // clear the dead servers with same host name and port of online server because we are not
     // removing dead server with same hostname and port of rs which is trying to check in before
