@@ -111,7 +111,7 @@ public class TestTablesWithQuotas {
       }
 
       @Override
-      int getNumReportedRegions(TableName table, QuotaViolationStore<TableName> tableStore) {
+      int getNumReportedRegions(TableName table, QuotaSnapshotStore<TableName> tableStore) {
         return reportedRegions.get(table);
       }
     };

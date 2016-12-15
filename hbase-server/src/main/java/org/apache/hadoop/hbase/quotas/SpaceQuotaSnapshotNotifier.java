@@ -30,7 +30,7 @@ import org.apache.hadoop.hbase.client.Connection;
  */
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
-public interface SpaceQuotaViolationNotifier {
+public interface SpaceQuotaSnapshotNotifier {
 
   /**
    * Initializes the notifier.
@@ -42,15 +42,7 @@ public interface SpaceQuotaViolationNotifier {
    * provided violation policy is the action which should be taken on the table.
    *
    * @param tableName The name of the table in violation of the quota.
-   * @param violationPolicy The policy which should be enacted on the table.
+   * @param snapshot The details of the violation of the quota.
    */
-  void transitionTableToViolation(
-      TableName tableName, SpaceViolationPolicy violationPolicy) throws IOException;
-
-  /**
-   * Instructs the cluster that the given table is in observance of any applicable space quota.
-   *
-   * @param tableName The name of the table in observance.
-   */
-  void transitionTableToObservance(TableName tableName) throws IOException;
+  void transitionTable(TableName tableName, SpaceQuotaSnapshot snapshot) throws IOException;
 }

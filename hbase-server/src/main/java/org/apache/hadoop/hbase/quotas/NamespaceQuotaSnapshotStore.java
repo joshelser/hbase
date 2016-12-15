@@ -22,8 +22,9 @@ import java.util.Objects;
 import java.util.Map.Entry;
 
 import org.apache.hadoop.hbase.HRegionInfo;
-import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.quotas.SpaceQuotaSnapshot.SpaceQuotaStatus;
+import org.apache.hadoop.hbase.shaded.protobuf.ProtobufUtil;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.Quotas;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceQuota;
 
@@ -31,68 +32,67 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 
 /**
- * {@link QuotaViolationStore} for tables.
+ * {@link QuotaSnapshotStore} implementation for namespaces.
  */
-public class TableQuotaViolationStore implements QuotaViolationStore<TableName> {
+public class NamespaceQuotaSnapshotStore implements QuotaSnapshotStore<String> {
   private final Connection conn;
   private final QuotaObserverChore chore;
   private final Map<HRegionInfo,Long> regionUsage;
 
-  public TableQuotaViolationStore(Connection conn, QuotaObserverChore chore, Map<HRegionInfo,Long> regionUsage) {
+  public NamespaceQuotaSnapshotStore(Connection conn, QuotaObserverChore chore, Map<HRegionInfo,Long> regionUsage) {
     this.conn = Objects.requireNonNull(conn);
     this.chore = Objects.requireNonNull(chore);
     this.regionUsage = Objects.requireNonNull(regionUsage);
   }
 
   @Override
-  public SpaceQuota getSpaceQuota(TableName subject) throws IOException {
-    Quotas quotas = getQuotaForTable(subject);
+  public SpaceQuota getSpaceQuota(String namespace) throws IOException {
+    Quotas quotas = getQuotaForNamespace(namespace);
     if (null != quotas && quotas.hasSpace()) {
       return quotas.getSpace();
     }
     return null;
   }
+
   /**
-   * Fetches the table quota. Visible for mocking/testing.
+   * Fetches the namespace quota. Visible for mocking/testing.
    */
-  Quotas getQuotaForTable(TableName table) throws IOException {
-    return QuotaTableUtil.getTableQuota(conn, table);
+  Quotas getQuotaForNamespace(String namespace) throws IOException {
+    return QuotaTableUtil.getNamespaceQuota(conn, namespace);
   }
 
   @Override
-  public ViolationState getCurrentState(TableName table) {
+  public SpaceQuotaSnapshot getCurrentState(String namespace) {
     // Defer the "current state" to the chore
-    return chore.getTableQuotaViolation(table);
+    return this.chore.getNamespaceQuotaViolation(namespace);
   }
 
   @Override
-  public ViolationState getTargetState(TableName table, SpaceQuota spaceQuota) {
+  public SpaceQuotaSnapshot getTargetState(String subject, SpaceQuota spaceQuota) {
     final long sizeLimitInBytes = spaceQuota.getSoftLimit();
     long sum = 0L;
-    for (Entry<HRegionInfo,Long> entry : filterBySubject(table)) {
+    for (Entry<HRegionInfo,Long> entry : filterBySubject(subject)) {
       sum += entry.getValue();
-      if (sum > sizeLimitInBytes) {
-        // Short-circuit early
-        return ViolationState.IN_VIOLATION;
-      }
     }
     // Observance is defined as the size of the table being less than the limit
-    return sum <= sizeLimitInBytes ? ViolationState.IN_OBSERVANCE : ViolationState.IN_VIOLATION;
+    SpaceQuotaStatus status = sum <= sizeLimitInBytes ? SpaceQuotaStatus.notInViolation()
+        : new SpaceQuotaStatus(ProtobufUtil.toViolationPolicy(spaceQuota.getViolationPolicy()));
+    return new SpaceQuotaSnapshot(status, sum, sizeLimitInBytes);
   }
 
   @Override
-  public Iterable<Entry<HRegionInfo,Long>> filterBySubject(TableName table) {
+  public Iterable<Entry<HRegionInfo,Long>> filterBySubject(String namespace) {
     return Iterables.filter(regionUsage.entrySet(), new Predicate<Entry<HRegionInfo,Long>>() {
       @Override
       public boolean apply(Entry<HRegionInfo,Long> input) {
-        return table.equals(input.getKey().getTable());
+        return namespace.equals(input.getKey().getTable().getNamespaceAsString());
       }
     });
   }
 
   @Override
-  public void setCurrentState(TableName table, ViolationState state) {
+  public void setCurrentState(String namespace, SpaceQuotaSnapshot snapshot) {
     // Defer the "current state" to the chore
-    this.chore.setTableQuotaViolation(table, state);
+    this.chore.setNamespaceQuotaViolation(namespace, snapshot);
   }
 }

@@ -36,6 +36,7 @@ import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.quotas.SpaceQuotaSnapshot.SpaceQuotaStatus;
 import org.apache.hadoop.hbase.shaded.protobuf.ProtobufUtil;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.Quotas;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.Throttle;
@@ -198,26 +199,26 @@ public class TestQuotaTableUtil {
   @Test
   public void testSerDeViolationPolicies() throws Exception {
     final TableName tn1 = getUniqueTableName();
-    final SpaceViolationPolicy policy1 = SpaceViolationPolicy.DISABLE;
+    final SpaceQuotaSnapshot violation1 = new SpaceQuotaSnapshot(new SpaceQuotaStatus(SpaceViolationPolicy.DISABLE), 512L, 1024L);
     final TableName tn2 = getUniqueTableName();
-    final SpaceViolationPolicy policy2 = SpaceViolationPolicy.NO_INSERTS;
+    final SpaceQuotaSnapshot violation2 = new SpaceQuotaSnapshot(new SpaceQuotaStatus(SpaceViolationPolicy.NO_INSERTS), 512L, 1024L);
     final TableName tn3 = getUniqueTableName();
-    final SpaceViolationPolicy policy3 = SpaceViolationPolicy.NO_WRITES;
+    final SpaceQuotaSnapshot violation3 = new SpaceQuotaSnapshot(new SpaceQuotaStatus(SpaceViolationPolicy.NO_WRITES), 512L, 1024L);
     List<Put> puts = new ArrayList<>();
-    puts.add(QuotaTableUtil.enableViolationPolicy(tn1, policy1));
-    puts.add(QuotaTableUtil.enableViolationPolicy(tn2, policy2));
-    puts.add(QuotaTableUtil.enableViolationPolicy(tn3, policy3));
-    final Map<TableName,SpaceViolationPolicy> expectedPolicies = new HashMap<>();
-    expectedPolicies.put(tn1, policy1);
-    expectedPolicies.put(tn2, policy2);
-    expectedPolicies.put(tn3, policy3);
+    puts.add(QuotaTableUtil.putSpaceSnapshot(tn1, violation1));
+    puts.add(QuotaTableUtil.putSpaceSnapshot(tn2, violation2));
+    puts.add(QuotaTableUtil.putSpaceSnapshot(tn3, violation3));
+    final Map<TableName,SpaceQuotaSnapshot> expectedPolicies = new HashMap<>();
+    expectedPolicies.put(tn1, violation1);
+    expectedPolicies.put(tn2, violation2);
+    expectedPolicies.put(tn3, violation3);
 
-    final Map<TableName,SpaceViolationPolicy> actualPolicies = new HashMap<>();
+    final Map<TableName,SpaceQuotaSnapshot> actualPolicies = new HashMap<>();
     try (Table quotaTable = connection.getTable(QuotaUtil.QUOTA_TABLE_NAME)) {
       quotaTable.put(puts);
       ResultScanner scanner = quotaTable.getScanner(QuotaTableUtil.makeQuotaViolationScan());
       for (Result r : scanner) {
-        QuotaTableUtil.extractViolationPolicy(r, actualPolicies);
+        QuotaTableUtil.extractQuotaSnapshot(r, actualPolicies);
       }
       scanner.close();
     }

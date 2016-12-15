@@ -30,28 +30,27 @@ import java.util.Objects;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Connection;
-import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Table;
-import org.apache.hadoop.hbase.shaded.protobuf.ProtobufUtil;
-import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceQuota;
+import org.apache.hadoop.hbase.quotas.SpaceQuotaSnapshot.SpaceQuotaStatus;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentMatcher;
 
 /**
- * Test case for {@link TableSpaceQuotaViolationNotifier}.
+ * Test case for {@link TableSpaceQuotaSnapshotNotifier}.
  */
 public class TestTableSpaceQuotaViolationNotifier {
 
-  private TableSpaceQuotaViolationNotifier notifier;
+  private TableSpaceQuotaSnapshotNotifier notifier;
   private Connection conn;
 
   @Before
   public void setup() throws Exception {
-    notifier = new TableSpaceQuotaViolationNotifier();
+    notifier = new TableSpaceQuotaSnapshotNotifier();
     conn = mock(Connection.class);
     notifier.initialize(conn);
   }
@@ -59,33 +58,23 @@ public class TestTableSpaceQuotaViolationNotifier {
   @Test
   public void testToViolation() throws Exception {
     final TableName tn = TableName.valueOf("inviolation");
-    final SpaceViolationPolicy policy = SpaceViolationPolicy.NO_INSERTS;
+    final SpaceQuotaSnapshot snapshot = new SpaceQuotaSnapshot(
+        new SpaceQuotaStatus(SpaceViolationPolicy.NO_INSERTS), 1024L, 512L);
     final Table quotaTable = mock(Table.class);
     when(conn.getTable(QuotaTableUtil.QUOTA_TABLE_NAME)).thenReturn(quotaTable);
 
     final Put expectedPut = new Put(Bytes.toBytes("t." + tn.getNameAsString()));
-    final SpaceQuota protoQuota = SpaceQuota.newBuilder()
-        .setViolationPolicy(ProtobufUtil.toProtoViolationPolicy(policy))
+    final QuotaProtos.SpaceQuotaSnapshot protoQuota = QuotaProtos.SpaceQuotaSnapshot.newBuilder()
+        .setStatus(QuotaProtos.SpaceQuotaStatus.newBuilder().setInViolation(true).setPolicy(
+            org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceViolationPolicy.NO_INSERTS))
+        .setLimit(512L)
+        .setUsage(1024L)
         .build();
-    expectedPut.addColumn(Bytes.toBytes("u"), Bytes.toBytes("v"), protoQuota.toByteArray());
+    expectedPut.addColumn(Bytes.toBytes("u"), Bytes.toBytes("p"), protoQuota.toByteArray());
 
-    notifier.transitionTableToViolation(tn, policy);
+    notifier.transitionTable(tn, snapshot);
 
     verify(quotaTable).put(argThat(new SingleCellPutMatcher(expectedPut)));
-  }
-
-  @Test
-  public void testToObservance() throws Exception {
-    final TableName tn = TableName.valueOf("notinviolation");
-    final Table quotaTable = mock(Table.class);
-    when(conn.getTable(QuotaTableUtil.QUOTA_TABLE_NAME)).thenReturn(quotaTable);
-
-    final Delete expectedDelete = new Delete(Bytes.toBytes("t." + tn.getNameAsString()));
-    expectedDelete.addColumn(Bytes.toBytes("u"), Bytes.toBytes("v"));
-
-    notifier.transitionTableToObservance(tn);
-
-    verify(quotaTable).delete(argThat(new SingleCellDeleteMatcher(expectedDelete)));
   }
 
   /**
@@ -93,15 +82,6 @@ public class TestTableSpaceQuotaViolationNotifier {
    */
   private static class SingleCellPutMatcher extends SingleCellMutationMatcher<Put> {
     private SingleCellPutMatcher(Put expected) {
-      super(expected);
-    }
-  }
-
-  /**
-   * Parameterized for Deletes.
-   */
-  private static class SingleCellDeleteMatcher extends SingleCellMutationMatcher<Delete> {
-    private SingleCellDeleteMatcher(Delete expected) {
       super(expected);
     }
   }

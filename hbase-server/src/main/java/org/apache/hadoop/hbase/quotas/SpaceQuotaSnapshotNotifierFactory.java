@@ -20,41 +20,39 @@ import java.util.Objects;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.classification.InterfaceAudience;
-import org.apache.hadoop.hbase.classification.InterfaceStability;
 
 /**
- * Factory for creating {@link SpaceQuotaViolationNotifier} implementations. Implementations
+ * Factory for creating {@link SpaceQuotaSnapshotNotifier} implementations. Implementations
  * must have a no-args constructor.
  */
 @InterfaceAudience.Private
-@InterfaceStability.Evolving
-public class SpaceQuotaViolationNotifierFactory {
-  private static final SpaceQuotaViolationNotifierFactory INSTANCE =
-      new SpaceQuotaViolationNotifierFactory();
+public class SpaceQuotaSnapshotNotifierFactory {
+  private static final SpaceQuotaSnapshotNotifierFactory INSTANCE =
+      new SpaceQuotaSnapshotNotifierFactory();
 
-  public static final String VIOLATION_NOTIFIER_KEY = "hbase.master.quota.violation.notifier.impl";
-  public static final Class<? extends SpaceQuotaViolationNotifier> VIOLATION_NOTIFIER_DEFAULT =
-      SpaceQuotaViolationNotifierForTest.class;
+  public static final String SNAPSHOT_NOTIFIER_KEY = "hbase.master.quota.snapshot.notifier.impl";
+  public static final Class<? extends SpaceQuotaSnapshotNotifier> SNAPSHOT_NOTIFIER_DEFAULT =
+      TableSpaceQuotaSnapshotNotifier.class;
 
   // Private
-  private SpaceQuotaViolationNotifierFactory() {}
+  private SpaceQuotaSnapshotNotifierFactory() {}
 
-  public static SpaceQuotaViolationNotifierFactory getInstance() {
+  public static SpaceQuotaSnapshotNotifierFactory getInstance() {
     return INSTANCE;
   }
 
   /**
-   * Instantiates the {@link SpaceQuotaViolationNotifier} implementation as defined in the
+   * Instantiates the {@link SpaceQuotaSnapshotNotifier} implementation as defined in the
    * configuration provided.
    *
    * @param conf Configuration object
    * @return The SpaceQuotaViolationNotifier implementation
    * @throws IllegalArgumentException if the class could not be instantiated
    */
-  public SpaceQuotaViolationNotifier create(Configuration conf) {
-    Class<? extends SpaceQuotaViolationNotifier> clz = Objects.requireNonNull(conf)
-        .getClass(VIOLATION_NOTIFIER_KEY, VIOLATION_NOTIFIER_DEFAULT,
-            SpaceQuotaViolationNotifier.class);
+  public SpaceQuotaSnapshotNotifier create(Configuration conf) {
+    Class<? extends SpaceQuotaSnapshotNotifier> clz = Objects.requireNonNull(conf)
+        .getClass(SNAPSHOT_NOTIFIER_KEY, SNAPSHOT_NOTIFIER_DEFAULT,
+            SpaceQuotaSnapshotNotifier.class);
     try {
       return clz.newInstance();
     } catch (InstantiationException | IllegalAccessException e) {
