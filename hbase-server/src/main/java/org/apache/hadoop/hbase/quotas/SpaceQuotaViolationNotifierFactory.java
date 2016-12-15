@@ -20,21 +20,19 @@ import java.util.Objects;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.classification.InterfaceAudience;
-import org.apache.hadoop.hbase.classification.InterfaceStability;
 
 /**
  * Factory for creating {@link SpaceQuotaViolationNotifier} implementations. Implementations
  * must have a no-args constructor.
  */
 @InterfaceAudience.Private
-@InterfaceStability.Evolving
 public class SpaceQuotaViolationNotifierFactory {
   private static final SpaceQuotaViolationNotifierFactory INSTANCE =
       new SpaceQuotaViolationNotifierFactory();
 
   public static final String VIOLATION_NOTIFIER_KEY = "hbase.master.quota.violation.notifier.impl";
   public static final Class<? extends SpaceQuotaViolationNotifier> VIOLATION_NOTIFIER_DEFAULT =
-      SpaceQuotaViolationNotifierForTest.class;
+      TableSpaceQuotaViolationNotifier.class;
 
   // Private
   private SpaceQuotaViolationNotifierFactory() {}

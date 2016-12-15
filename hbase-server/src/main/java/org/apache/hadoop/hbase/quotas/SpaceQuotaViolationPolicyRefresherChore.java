@@ -65,12 +65,19 @@ public class SpaceQuotaViolationPolicyRefresherChore extends ScheduledChore {
   @Override
   protected void chore() {
     try {
+      if (LOG.isTraceEnabled()) {
+        LOG.trace("Reading current quota violations from hbase:quota.");
+      }
       // Tables with a policy currently enforced
       final Map<TableName, SpaceViolationPolicy> activeViolationPolicies =
-          manager.getActiveViolationPolicyEnforcements();
+          manager.getActivePoliciesAsMap();
       // Tables with policies that should be enforced
       final Map<TableName, SpaceViolationPolicy> violationPolicies =
           manager.getViolationPoliciesToEnforce();
+      if (LOG.isTraceEnabled()) {
+        LOG.trace(activeViolationPolicies.size() + " policies are currently active, "
+            + "this server should have " + violationPolicies.size() + " active");
+      }
       // Ensure each policy which should be enacted is enacted.
       for (Entry<TableName, SpaceViolationPolicy> entry : violationPolicies.entrySet()) {
         final TableName tableName = entry.getKey();
