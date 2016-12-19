@@ -37,6 +37,8 @@ import org.apache.hadoop.hbase.quotas.policies.NoWritesCompactionsViolationPolic
 import org.apache.hadoop.hbase.quotas.policies.NoWritesViolationPolicyEnforcement;
 import org.apache.hadoop.hbase.quotas.policies.NoopViolationPolicyEnforcement;
 import org.apache.hadoop.hbase.regionserver.RegionServerServices;
+import org.apache.hadoop.hbase.shaded.protobuf.ProtobufUtil;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceViolation;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -62,22 +64,43 @@ public class TestSpaceQuotaViolationPolicyRefresherChore {
 
   @Test
   public void testPoliciesAreEnforced() throws IOException {
-    final Map<TableName,SpaceViolationPolicy> policiesToEnforce = new HashMap<>();
-    policiesToEnforce.put(TableName.valueOf("table1"), SpaceViolationPolicy.DISABLE);
-    policiesToEnforce.put(TableName.valueOf("table2"), SpaceViolationPolicy.NO_INSERTS);
-    policiesToEnforce.put(TableName.valueOf("table3"), SpaceViolationPolicy.NO_WRITES);
-    policiesToEnforce.put(TableName.valueOf("table4"), SpaceViolationPolicy.NO_WRITES_COMPACTIONS);
+    // Create a number of policies that should be enforced (usage > limit)
+    final Map<TableName,SpaceViolation> policiesToEnforce = new HashMap<>();
+    policiesToEnforce.put(TableName.valueOf("table1"), 
+        SpaceViolation.newBuilder().setPolicy(
+            ProtobufUtil.toProtoViolationPolicy(SpaceViolationPolicy.DISABLE))
+        .setUsage(1024L)
+        .setLimit(512L)
+        .build());
+    policiesToEnforce.put(TableName.valueOf("table2"), 
+        SpaceViolation.newBuilder().setPolicy(
+            ProtobufUtil.toProtoViolationPolicy(SpaceViolationPolicy.NO_INSERTS))
+        .setUsage(1024L)
+        .setLimit(512L)
+        .build());
+    policiesToEnforce.put(TableName.valueOf("table3"),
+        SpaceViolation.newBuilder().setPolicy(
+            ProtobufUtil.toProtoViolationPolicy(SpaceViolationPolicy.NO_WRITES))
+        .setUsage(1024L)
+        .setLimit(512L)
+        .build());
+    policiesToEnforce.put(TableName.valueOf("table4"),
+        SpaceViolation.newBuilder().setPolicy(
+            ProtobufUtil.toProtoViolationPolicy(SpaceViolationPolicy.NO_WRITES_COMPACTIONS))
+        .setUsage(1024L)
+        .setLimit(512L)
+        .build());
 
     // No active enforcements
     when(manager.copyActiveEnforcements()).thenReturn(Collections.emptyMap());
     // Policies to enforce
-    when(manager.getViolationPoliciesToEnforce()).thenReturn(policiesToEnforce);
+    when(manager.getViolationsToEnforce()).thenReturn(policiesToEnforce);
 
     chore.chore();
 
-    for (Entry<TableName,SpaceViolationPolicy> entry : policiesToEnforce.entrySet()) {
+    for (Entry<TableName,SpaceViolation> entry : policiesToEnforce.entrySet()) {
       // Ensure we enforce the policy
-      verify(manager).enforceViolationPolicy(entry.getKey(), entry.getValue());
+      verify(manager).enforceViolationPolicy(entry.getKey(), ProtobufUtil.toViolationPolicy(entry.getValue().getPolicy()));
       // Don't disable any policies
       verify(manager, never()).disableViolationPolicyEnforcement(entry.getKey());
     }
@@ -85,10 +108,19 @@ public class TestSpaceQuotaViolationPolicyRefresherChore {
 
   @Test
   public void testOldPoliciesAreRemoved() throws IOException {
-    final Map<TableName,SpaceViolationPolicy> policiesToEnforce = new HashMap<>();
-    policiesToEnforce.put(TableName.valueOf("table1"), SpaceViolationPolicy.DISABLE);
-    policiesToEnforce.put(TableName.valueOf("table2"), SpaceViolationPolicy.NO_INSERTS);
-
+    final Map<TableName,SpaceViolation> policiesToEnforce = new HashMap<>();
+    policiesToEnforce.put(TableName.valueOf("table1"),
+        SpaceViolation.newBuilder().setPolicy(
+            ProtobufUtil.toProtoViolationPolicy(SpaceViolationPolicy.DISABLE))
+        .setUsage(1024L)
+        .setLimit(512L)
+        .build());
+    policiesToEnforce.put(TableName.valueOf("table2"),
+        SpaceViolation.newBuilder().setPolicy(
+            ProtobufUtil.toProtoViolationPolicy(SpaceViolationPolicy.NO_INSERTS))
+        .setUsage(1024L)
+        .setLimit(512L)
+        .build());
     final Map<TableName,SpaceViolationPolicy> previousPolicies = new HashMap<>();
     previousPolicies.put(TableName.valueOf("table3"), SpaceViolationPolicy.NO_WRITES);
     previousPolicies.put(TableName.valueOf("table4"), SpaceViolationPolicy.NO_WRITES);
@@ -96,12 +128,12 @@ public class TestSpaceQuotaViolationPolicyRefresherChore {
     // No active enforcements
     when(manager.getActivePoliciesAsMap()).thenReturn(previousPolicies);
     // Policies to enforce
-    when(manager.getViolationPoliciesToEnforce()).thenReturn(policiesToEnforce);
+    when(manager.getViolationsToEnforce()).thenReturn(policiesToEnforce);
 
     chore.chore();
 
-    for (Entry<TableName,SpaceViolationPolicy> entry : policiesToEnforce.entrySet()) {
-      verify(manager).enforceViolationPolicy(entry.getKey(), entry.getValue());
+    for (Entry<TableName,SpaceViolation> entry : policiesToEnforce.entrySet()) {
+      verify(manager).enforceViolationPolicy(entry.getKey(), ProtobufUtil.toViolationPolicy(entry.getValue().getPolicy()));
     }
 
     for (Entry<TableName,SpaceViolationPolicy> entry : previousPolicies.entrySet()) {
@@ -111,10 +143,25 @@ public class TestSpaceQuotaViolationPolicyRefresherChore {
 
   @Test
   public void testNewPolicyOverridesOld() throws IOException {
-    final Map<TableName,SpaceViolationPolicy> policiesToEnforce = new HashMap<>();
-    policiesToEnforce.put(TableName.valueOf("table1"), SpaceViolationPolicy.DISABLE);
-    policiesToEnforce.put(TableName.valueOf("table2"), SpaceViolationPolicy.NO_WRITES);
-    policiesToEnforce.put(TableName.valueOf("table3"), SpaceViolationPolicy.NO_INSERTS);
+    final Map<TableName,SpaceViolation> policiesToEnforce = new HashMap<>();
+    policiesToEnforce.put(TableName.valueOf("table1"),
+        SpaceViolation.newBuilder().setPolicy(
+            ProtobufUtil.toProtoViolationPolicy(SpaceViolationPolicy.DISABLE))
+            .setUsage(1024L)
+            .setLimit(512L)
+            .build());
+    policiesToEnforce.put(TableName.valueOf("table2"),
+        SpaceViolation.newBuilder().setPolicy(
+            ProtobufUtil.toProtoViolationPolicy(SpaceViolationPolicy.NO_WRITES))
+        .setUsage(1024L)
+        .setLimit(512L)
+        .build());
+    policiesToEnforce.put(TableName.valueOf("table3"),
+        SpaceViolation.newBuilder().setPolicy(
+            ProtobufUtil.toProtoViolationPolicy(SpaceViolationPolicy.NO_INSERTS))
+        .setUsage(1024L)
+        .setLimit(512L)
+        .build());
 
     final Map<TableName,SpaceViolationPolicy> previousPolicies = new HashMap<>();
     previousPolicies.put(TableName.valueOf("table1"), SpaceViolationPolicy.NO_WRITES);
@@ -122,12 +169,12 @@ public class TestSpaceQuotaViolationPolicyRefresherChore {
     // No active enforcements
     when(manager.getActivePoliciesAsMap()).thenReturn(previousPolicies);
     // Policies to enforce
-    when(manager.getViolationPoliciesToEnforce()).thenReturn(policiesToEnforce);
+    when(manager.getViolationsToEnforce()).thenReturn(policiesToEnforce);
 
     chore.chore();
 
-    for (Entry<TableName,SpaceViolationPolicy> entry : policiesToEnforce.entrySet()) {
-      verify(manager).enforceViolationPolicy(entry.getKey(), entry.getValue());
+    for (Entry<TableName,SpaceViolation> entry : policiesToEnforce.entrySet()) {
+      verify(manager).enforceViolationPolicy(entry.getKey(), ProtobufUtil.toViolationPolicy(entry.getValue().getPolicy()));
     }
     verify(manager, never()).disableViolationPolicyEnforcement(TableName.valueOf("table1"));
   }

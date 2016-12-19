@@ -33,6 +33,7 @@ import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.regionserver.RegionServerServices;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceViolation;
 import org.apache.hadoop.hbase.util.Bytes;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -116,20 +117,20 @@ public class RegionServerSpaceQuotaManager {
    * @return The collection of tables which are in violation of their quota and the policy which
    *    should be enforced.
    */
-  public Map<TableName, SpaceViolationPolicy> getViolationPoliciesToEnforce() throws IOException {
+  public Map<TableName, SpaceViolation> getViolationsToEnforce() throws IOException {
     try (Table quotaTable = getConnection().getTable(QuotaUtil.QUOTA_TABLE_NAME);
         ResultScanner scanner = quotaTable.getScanner(QuotaTableUtil.makeQuotaViolationScan())) {
-      Map<TableName,SpaceViolationPolicy> activePolicies = new HashMap<>();
+      Map<TableName,SpaceViolation> activeViolations = new HashMap<>();
       for (Result result : scanner) {
         try {
-          extractViolationPolicy(result, activePolicies);
+          extractViolationPolicy(result, activeViolations);
         } catch (IllegalArgumentException e) {
           final String msg = "Failed to parse result for row " + Bytes.toString(result.getRow());
           LOG.error(msg, e);
           throw new IOException(msg, e);
         }
       }
-      return activePolicies;
+      return activeViolations;
     }
   }
 
@@ -216,8 +217,8 @@ public class RegionServerSpaceQuotaManager {
   /**
    * Wrapper around {@link QuotaTableUtil#extractViolationPolicy(Result, Map)} for testing.
    */
-  void extractViolationPolicy(Result result, Map<TableName,SpaceViolationPolicy> activePolicies) {
-    QuotaTableUtil.extractViolationPolicy(result, activePolicies);
+  void extractViolationPolicy(Result result, Map<TableName,SpaceViolation> activeViolations) {
+    QuotaTableUtil.extractViolationPolicy(result, activeViolations);
   }
 
   RegionServerServices getRegionServerServices() {

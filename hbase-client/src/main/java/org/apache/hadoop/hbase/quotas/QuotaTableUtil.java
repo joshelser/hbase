@@ -34,7 +34,6 @@ import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.classification.InterfaceAudience;
 import org.apache.hadoop.hbase.classification.InterfaceStability;
 import org.apache.hadoop.hbase.client.Connection;
-import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
@@ -53,6 +52,7 @@ import org.apache.hadoop.hbase.shaded.com.google.protobuf.UnsafeByteOperations;
 import org.apache.hadoop.hbase.shaded.protobuf.ProtobufUtil;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.Quotas;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceQuota;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceViolation;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.Strings;
 
@@ -61,8 +61,9 @@ import org.apache.hadoop.hbase.util.Strings;
  * <pre>
  *     ROW-KEY      FAM/QUAL        DATA
  *   n.&lt;namespace&gt; q:s         &lt;global-quotas&gt;
+ *   t.&lt;namespace&gt; u:p        &lt;namespace-quota policy&gt;
  *   t.&lt;table&gt;     q:s         &lt;global-quotas&gt;
- *   t.&lt;table&gt;     u:v        &lt;space violation policy&gt;
+ *   t.&lt;table&gt;     u:p        &lt;table-quota policy&gt;
  *   u.&lt;user&gt;      q:s         &lt;global-quotas&gt;
  *   u.&lt;user&gt;      q:s.&lt;table&gt; &lt;table-quotas&gt;
  *   u.&lt;user&gt;      q:s.&lt;ns&gt;:   &lt;namespace-quotas&gt;
@@ -81,7 +82,7 @@ public class QuotaTableUtil {
   protected static final byte[] QUOTA_FAMILY_USAGE = Bytes.toBytes("u");
   protected static final byte[] QUOTA_QUALIFIER_SETTINGS = Bytes.toBytes("s");
   protected static final byte[] QUOTA_QUALIFIER_SETTINGS_PREFIX = Bytes.toBytes("s.");
-  protected static final byte[] QUOTA_QUALIFIER_VIOLATION = Bytes.toBytes("v");
+  protected static final byte[] QUOTA_QUALIFIER_POLICY = Bytes.toBytes("p");
   protected static final byte[] QUOTA_USER_ROW_KEY_PREFIX = Bytes.toBytes("u.");
   protected static final byte[] QUOTA_TABLE_ROW_KEY_PREFIX = Bytes.toBytes("t.");
   protected static final byte[] QUOTA_NAMESPACE_ROW_KEY_PREFIX = Bytes.toBytes("n.");
@@ -216,7 +217,7 @@ public class QuotaTableUtil {
   public static Scan makeQuotaViolationScan() {
     Scan s = new Scan();
     // Limit to "u:v" column
-    s.addColumn(QUOTA_FAMILY_USAGE, QUOTA_QUALIFIER_VIOLATION);
+    s.addColumn(QUOTA_FAMILY_USAGE, QUOTA_QUALIFIER_POLICY);
     // Limit rowspace to the "t:" prefix
     s.setRowPrefixFilter(QUOTA_TABLE_ROW_KEY_PREFIX);
     return s;
@@ -229,24 +230,24 @@ public class QuotaTableUtil {
    * will throw an {@link IllegalArgumentException}.
    *
    * @param result A row from the quota table.
-   * @param policies A map of policies to add the result of this method into.
+   * @param violations A map of violations to add the result of this method into.
    */
   public static void extractViolationPolicy(
-      Result result, Map<TableName,SpaceViolationPolicy> policies) {
+      Result result, Map<TableName,SpaceViolation> violations) {
     byte[] row = Objects.requireNonNull(result).getRow();
     if (null == row) {
       throw new IllegalArgumentException("Provided result had a null row");
     }
     final TableName targetTableName = getTableFromRowKey(row);
-    Cell c = result.getColumnLatestCell(QUOTA_FAMILY_USAGE, QUOTA_QUALIFIER_VIOLATION);
+    Cell c = result.getColumnLatestCell(QUOTA_FAMILY_USAGE, QUOTA_QUALIFIER_POLICY);
     if (null == c) {
       throw new IllegalArgumentException("Result did not contain the expected column.");
     }
     ByteString buffer = UnsafeByteOperations.unsafeWrap(
         c.getValueArray(), c.getValueOffset(), c.getValueLength());
     try {
-      SpaceQuota quota = SpaceQuota.parseFrom(buffer);
-      policies.put(targetTableName, getViolationPolicy(quota));
+      SpaceViolation violation = SpaceViolation.parseFrom(buffer);
+      violations.put(targetTableName, violation);
     } catch (InvalidProtocolBufferException e) {
       throw new IllegalArgumentException(
           "Result did not contain a valid SpaceQuota protocol buffer message", e);
@@ -353,27 +354,17 @@ public class QuotaTableUtil {
    */
   public static Scan getScanForViolations() {
     Scan s = new Scan();
-    s.addColumn(QUOTA_FAMILY_USAGE, QUOTA_QUALIFIER_VIOLATION);
+    s.addColumn(QUOTA_FAMILY_USAGE, QUOTA_QUALIFIER_POLICY);
     return s;
   }
 
   /**
    * Creates a {@link Put} to enable the given <code>policy</code> on the <code>table</code>.
    */
-  public static Put enableViolationPolicy(TableName tableName, SpaceViolationPolicy policy) {
+  public static Put putViolationPolicy(TableName tableName, SpaceViolation violation) {
     Put p = new Put(getTableRowKey(tableName));
-    SpaceQuota quota = getProtoViolationPolicy(policy);
-    p.addColumn(QUOTA_FAMILY_USAGE, QUOTA_QUALIFIER_VIOLATION, quota.toByteArray());
+    p.addColumn(QUOTA_FAMILY_USAGE, QUOTA_QUALIFIER_POLICY, violation.toByteArray());
     return p;
-  }
-
-  /**
-   * Creates a {@link Delete} to remove a policy on the given <code>table</code>.
-   */
-  public static Delete removeViolationPolicy(TableName tableName) {
-    Delete d = new Delete(getTableRowKey(tableName));
-    d.addColumn(QUOTA_FAMILY_USAGE, QUOTA_QUALIFIER_VIOLATION);
-    return d;
   }
 
   /* =========================================================================

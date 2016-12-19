@@ -35,9 +35,9 @@ import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.master.HMaster;
 import org.apache.hadoop.hbase.quotas.QuotaViolationStore.ViolationState;
-import org.apache.hadoop.hbase.shaded.protobuf.ProtobufUtil;
-import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.Quotas;
+import org.apache.hadoop.hbase.quotas.SpaceQuotaSnapshot;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceQuota;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceViolation;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.HashMultimap;
@@ -77,8 +77,8 @@ public class QuotaObserverChore extends ScheduledChore {
   /*
    * Preserves the state of quota violations for tables and namespaces
    */
-  private final Map<TableName,ViolationState> tableQuotaViolationStates;
-  private final Map<String,ViolationState> namespaceQuotaViolationStates;
+  private final Map<TableName,SpaceQuotaSnapshot> tableQuotaViolationStates;
+  private final Map<String,SpaceQuotaSnapshot> namespaceQuotaViolationStates;
 
   /*
    * Encapsulates logic for moving tables/namespaces into or out of quota violation
@@ -150,32 +150,9 @@ public class QuotaObserverChore extends ScheduledChore {
         }
         continue;
       }
-      final ViolationState currentState = tableViolationStore.getCurrentState(table);
-      final ViolationState targetState = tableViolationStore.getTargetState(table, spaceQuota);
-
-      if (currentState == ViolationState.IN_VIOLATION) {
-        if (targetState == ViolationState.IN_OBSERVANCE) {
-          LOG.info(table + " moving into observance of table space quota.");
-          transitionTableToObservance(table);
-          tableViolationStore.setCurrentState(table, ViolationState.IN_OBSERVANCE);
-        } else if (targetState == ViolationState.IN_VIOLATION) {
-          if (LOG.isTraceEnabled()) {
-            LOG.trace(table + " remains in violation of quota.");
-          }
-          tableViolationStore.setCurrentState(table, ViolationState.IN_VIOLATION);
-        }
-      } else if (currentState == ViolationState.IN_OBSERVANCE) {
-        if (targetState == ViolationState.IN_VIOLATION) {
-          LOG.info(table + " moving into violation of table space quota.");
-          transitionTableToViolation(table, getViolationPolicy(spaceQuota));
-          tableViolationStore.setCurrentState(table, ViolationState.IN_VIOLATION);
-        } else if (targetState == ViolationState.IN_OBSERVANCE) {
-          if (LOG.isTraceEnabled()) {
-            LOG.trace(table + " remains in observance of quota.");
-          }
-          tableViolationStore.setCurrentState(table, ViolationState.IN_OBSERVANCE);
-        }
-      }
+      final SpaceQuotaSnapshot currentSnapshot = tableViolationStore.getCurrentState(table);
+      final SpaceQuotaSnapshot targetSnapshot = tableViolationStore.getTargetState(table, spaceQuota);
+      updateTableQuota(table, currentSnapshot, targetSnapshot);
     }
 
     // For each Namespace quota, transition each table in the namespace in or out of violation
@@ -192,50 +169,116 @@ public class QuotaObserverChore extends ScheduledChore {
         }
         continue;
       }
-      final ViolationState currentState = namespaceViolationStore.getCurrentState(namespace);
-      final ViolationState targetState = namespaceViolationStore.getTargetState(namespace, spaceQuota);
-      // When in observance, check if we need to move to violation.
-      if (ViolationState.IN_OBSERVANCE == currentState) {
-        if (ViolationState.IN_VIOLATION == targetState) {
-          for (TableName tableInNS : tablesByNamespace.get(namespace)) {
-            if (ViolationState.IN_VIOLATION == tableViolationStore.getCurrentState(tableInNS)) {
-              // Table-level quota violation policy is being applied here.
-              if (LOG.isTraceEnabled()) {
-                LOG.trace("Not activating Namespace violation policy because Table violation"
-                    + " policy is already in effect for " + tableInNS);
-              }
-              continue;
-            } else {
-              LOG.info(tableInNS + " moving into violation of namespace space quota");
-              transitionTableToViolation(tableInNS, getViolationPolicy(spaceQuota));
+      final SpaceQuotaSnapshot currentSnapshot = namespaceViolationStore.getCurrentState(namespace);
+      final SpaceQuotaSnapshot targetSnapshot = namespaceViolationStore.getTargetState(namespace, spaceQuota);
+      updateNamespaceQuota(namespace, currentSnapshot, targetSnapshot, tablesByNamespace);
+    }
+  }
+
+  /**
+   * Updates the hbase:quota table with the new quota policy for this <code>table</code>
+   * if necessary.
+   *
+   * @param table The table being checked
+   * @param currentSnapshot The state of the quota on this table from the previous invocation.
+   * @param targetSnapshot The state the quota should be in for this table.
+   */
+  void updateTableQuota(
+      TableName table, SpaceQuotaSnapshot currentSnapshot, SpaceQuotaSnapshot targetSnapshot)
+          throws IOException {
+    final SpaceViolationPolicy currentPolicy = currentSnapshot.getPolicy();
+    final SpaceViolationPolicy targetPolicy = targetSnapshot.getPolicy();
+
+    // The policies are different, we're changing something
+    if (currentPolicy != targetPolicy) {
+      // If the target is none, we're moving out of violation. Update the hbase:quota table
+      if (targetPolicy == SpaceViolationPolicy.NONE) {
+        LOG.info(table + " moving into observance of table space quota.");
+        transitionTableToObservance(table, targetSnapshot);
+      } else {
+        // We're either moving into violation or changing violation policies
+        LOG.info(table + " moving into violation of table space quota with policy of " + targetPolicy);
+        transitionTableToViolation(table, targetSnapshot);
+      }
+      // Update it in memory
+      tableViolationStore.setCurrentState(table, targetSnapshot);
+    } else if (LOG.isTraceEnabled()) {
+      // Policies are the same, so we have nothing to do except log this
+      if (currentPolicy == SpaceViolationPolicy.NONE) {
+        LOG.trace(table + " remains in observance of quota.");
+      } else {
+        LOG.trace(table + " remains in violation of quota.");
+      }
+    }
+  }
+      
+  /**
+   * Updates the hbase:quota table with the target quota policy for this <code>namespace</code>
+   * if necessary.
+   *
+   * @param namespace The namespace being checked
+   * @param currentSnapshot The state of the quota on this namespace from the previous invocation
+   * @param targetSnapshot The state the quota should be in for this namespace
+   * @param tablesByNamespace A mapping of tables in namespaces.
+   */
+  void updateNamespaceQuota(
+      String namespace, SpaceQuotaSnapshot currentSnapshot, SpaceQuotaSnapshot targetSnapshot,
+      final Multimap<String,TableName> tablesByNamespace) throws IOException {
+    final SpaceViolationPolicy currentPolicy = currentSnapshot.getPolicy();
+    final SpaceViolationPolicy targetPolicy = targetSnapshot.getPolicy();
+
+    // When the policies differ, we need to move into or out of violatino
+    if (currentPolicy != targetPolicy) {
+      // We want to have a policy of "NONE", moving out of violation
+      if (targetPolicy == SpaceViolationPolicy.NONE) {
+        for (TableName tableInNS : tablesByNamespace.get(namespace)) {
+          if (SpaceViolationPolicy.NONE != tableViolationStore.getCurrentState(tableInNS).getPolicy()) {
+            // Table-level quota violation policy is being applied here.
+            if (LOG.isTraceEnabled()) {
+              LOG.trace("Not activating Namespace violation policy because a Table violation"
+                  + " policy is already in effect for " + tableInNS);
             }
-          }
-        } else {
-          // still in observance
-          if (LOG.isTraceEnabled()) {
-            LOG.trace(namespace + " remains in observance of quota.");
+          } else {
+            LOG.info(tableInNS + " moving into observance of namespace space quota");
+            transitionTableToObservance(tableInNS, targetSnapshot);
           }
         }
-      } else if (ViolationState.IN_VIOLATION == currentState) {
-        // When in violation, check if we need to move to observance.
-        if (ViolationState.IN_OBSERVANCE == targetState) {
-          for (TableName tableInNS : tablesByNamespace.get(namespace)) {
-            if (ViolationState.IN_VIOLATION == tableViolationStore.getCurrentState(tableInNS)) {
-              // Table-level quota violation policy is being applied here.
-              if (LOG.isTraceEnabled()) {
-                LOG.trace("Not activating Namespace violation policy because Table violation"
-                    + " policy is already in effect for " + tableInNS);
-              }
-              continue;
-            } else {
-              LOG.info(tableInNS + " moving into observance of namespace space quota");
-              transitionTableToObservance(tableInNS);
+      } else {
+        // Moving tables in the namespace into violation or to a different violation policy
+        for (TableName tableInNS : tablesByNamespace.get(namespace)) {
+          if (SpaceViolationPolicy.NONE != tableViolationStore.getCurrentState(tableInNS).getPolicy()) {
+            // Table-level quota violation policy is being applied here.
+            if (LOG.isTraceEnabled()) {
+              LOG.trace("Not activating Namespace violation policy because a Table violation"
+                  + " policy is already in effect for " + tableInNS);
             }
+          } else {
+            LOG.info(tableInNS + " moving into violation of namespace space quota with policy " + targetPolicy);
+            transitionTableToViolation(tableInNS, targetSnapshot);
           }
-        } else {
-          // Remains in violation
-          if (LOG.isTraceEnabled()) {
-            LOG.trace(namespace + " remains in violation of quota.");
+        }
+      }
+    } else {
+      // Policies are the same
+      if (targetPolicy == SpaceViolationPolicy.NONE) {
+        // Both are NONE, so we remain in observance
+        if (LOG.isTraceEnabled()) {
+          LOG.trace(namespace + " remains in observance of quota.");
+        }
+      } else {
+        // Namespace quota is still in violation, need to enact if the table quota is not taking priority.
+        for (TableName tableInNS : tablesByNamespace.get(namespace)) {
+          // Does a table policy exist
+          if (SpaceViolationPolicy.NONE != tableViolationStore.getCurrentState(tableInNS).getPolicy()) {
+            // Table-level quota violation policy is being applied here.
+            if (LOG.isTraceEnabled()) {
+              LOG.trace("Not activating Namespace violation policy because Table violation"
+                  + " policy is already in effect for " + tableInNS);
+            }
+          } else {
+            // No table policy, so enact namespace policy
+            LOG.info(tableInNS + " moving into violation of namespace space quota");
+            transitionTableToViolation(tableInNS, targetSnapshot);
           }
         }
       }
@@ -312,27 +355,27 @@ public class QuotaObserverChore extends ScheduledChore {
   /**
    * Transitions the given table to violation of its quota, enabling the violation policy.
    */
-  private void transitionTableToViolation(TableName table, SpaceViolationPolicy violationPolicy)
+  private void transitionTableToViolation(TableName table, SpaceQuotaSnapshot violation)
       throws IOException {
-    this.violationNotifier.transitionTableToViolation(table, violationPolicy);
+    this.violationNotifier.transitionTable(table, violation);
   }
 
   /**
    * Transitions the given table to observance of its quota, disabling the violation policy.
    */
-  private void transitionTableToObservance(TableName table) throws IOException {
-    this.violationNotifier.transitionTableToObservance(table);
+  private void transitionTableToObservance(TableName table, SpaceQuotaSnapshot violation) throws IOException {
+    this.violationNotifier.transitionTable(table, violation);
   }
 
   /**
    * Fetch the {@link ViolationState} for the given table.
    */
-  ViolationState getTableQuotaViolation(TableName table) {
+  SpaceQuotaSnapshot getTableQuotaViolation(TableName table) {
     // TODO Can one instance of a Chore be executed concurrently?
-    ViolationState state = this.tableQuotaViolationStates.get(table);
+    SpaceQuotaSnapshot state = this.tableQuotaViolationStates.get(table);
     if (null == state) {
       // No tracked state implies observance.
-      return ViolationState.IN_OBSERVANCE;
+      return QuotaViolationStore.NO_QUOTA;
     }
     return state;
   }
@@ -340,19 +383,19 @@ public class QuotaObserverChore extends ScheduledChore {
   /**
    * Stores the quota violation state for the given table.
    */
-  void setTableQuotaViolation(TableName table, ViolationState state) {
-    this.tableQuotaViolationStates.put(table, state);
+  void setTableQuotaViolation(TableName table, SpaceQuotaSnapshot snapshot) {
+    this.tableQuotaViolationStates.put(table, snapshot);
   }
 
   /**
    * Fetches the {@link ViolationState} for the given namespace.
    */
-  ViolationState getNamespaceQuotaViolation(String namespace) {
+  SpaceQuotaSnapshot getNamespaceQuotaViolation(String namespace) {
     // TODO Can one instance of a Chore be executed concurrently?
-    ViolationState state = this.namespaceQuotaViolationStates.get(namespace);
+    SpaceQuotaSnapshot state = this.namespaceQuotaViolationStates.get(namespace);
     if (null == state) {
       // No tracked state implies observance.
-      return ViolationState.IN_OBSERVANCE;
+      return QuotaViolationStore.NO_QUOTA;
     }
     return state;
   }
@@ -360,20 +403,25 @@ public class QuotaObserverChore extends ScheduledChore {
   /**
    * Stores the quota violation state for the given namespace.
    */
-  void setNamespaceQuotaViolation(String namespace, ViolationState state) {
-    this.namespaceQuotaViolationStates.put(namespace, state);
+  void setNamespaceQuotaViolation(String namespace, SpaceQuotaSnapshot snapshot) {
+    this.namespaceQuotaViolationStates.put(namespace, snapshot);
   }
 
   /**
-   * Extracts the {@link SpaceViolationPolicy} from the serialized {@link Quotas} protobuf.
-   * @throws IllegalArgumentException If the SpaceQuota lacks a ViolationPolicy
+   * Constructs a {@link SpaceViolation} from the violation policy and usage.
+   * @throws IllegalArgumentException If the SpaceQuota lacks a ViolationPolicy or softLimit
    */
-  SpaceViolationPolicy getViolationPolicy(SpaceQuota spaceQuota) {
+  SpaceViolation getViolation(SpaceQuota spaceQuota, long use) {
     if (!spaceQuota.hasViolationPolicy()) {
       throw new IllegalArgumentException("SpaceQuota had no associated violation policy: "
           + spaceQuota);
     }
-    return ProtobufUtil.toViolationPolicy(spaceQuota.getViolationPolicy());
+    if (!spaceQuota.hasSoftLimit()) {
+      throw new IllegalArgumentException("SpaceQuota had no associated softLimit: " + spaceQuota);
+    }
+    return SpaceViolation.newBuilder().setLimit(spaceQuota.getSoftLimit())
+        .setPolicy(spaceQuota.getViolationPolicy()).setUsage(use)
+        .build();
   }
 
   /**

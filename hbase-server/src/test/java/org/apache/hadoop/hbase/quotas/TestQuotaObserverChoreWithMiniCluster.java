@@ -137,8 +137,8 @@ public class TestQuotaObserverChoreWithMiniCluster {
     // Write more data than should be allowed
     helper.writeData(tn, 3L * SpaceQuotaHelperForTests.ONE_MEGABYTE);
 
-    Map<TableName,SpaceViolationPolicy> violatedQuotas = violationNotifier.snapshotTablesInViolation();
-    while (violatedQuotas.isEmpty()) {
+    Map<TableName,SpaceQuotaSnapshot> quotaSnapshots = violationNotifier.snapshotTablesInViolation();
+    while (quotaSnapshots.isEmpty()) {
       LOG.info("Found no violated quotas, sleeping and retrying. Current reports: "
           + master.getMasterQuotaManager().snapshotRegionSizes());
       try {
@@ -147,12 +147,17 @@ public class TestQuotaObserverChoreWithMiniCluster {
         LOG.debug("Interrupted while sleeping.", e);
         Thread.currentThread().interrupt();
       }
-      violatedQuotas = violationNotifier.snapshotTablesInViolation();
+      quotaSnapshots = violationNotifier.snapshotTablesInViolation();
     }
 
-    Entry<TableName,SpaceViolationPolicy> entry = Iterables.getOnlyElement(violatedQuotas.entrySet());
+    Entry<TableName,SpaceQuotaSnapshot> entry = Iterables.getOnlyElement(quotaSnapshots.entrySet());
     assertEquals(tn, entry.getKey());
-    assertEquals(violationPolicy, entry.getValue());
+    final SpaceQuotaSnapshot snapshot = entry.getValue();
+    assertEquals(violationPolicy, snapshot.getPolicy());
+    assertEquals(sizeLimit, snapshot.getLimit());
+    assertTrue(
+        "The usage should be greater than the limit, but were " + snapshot.getUsage() + " and "
+        + snapshot.getLimit() + ", respectively", snapshot.getUsage() > snapshot.getLimit());
   }
 
   @Test
@@ -178,7 +183,7 @@ public class TestQuotaObserverChoreWithMiniCluster {
 
     helper.writeData(tn1, 2L * SpaceQuotaHelperForTests.ONE_MEGABYTE);
     admin.flush(tn1);
-    Map<TableName,SpaceViolationPolicy> violatedQuotas = violationNotifier.snapshotTablesInViolation();
+    Map<TableName,SpaceQuotaSnapshot> violatedQuotas = violationNotifier.snapshotTablesInViolation();
     for (int i = 0; i < 5; i++) {
       // Check a few times to make sure we don't prematurely move to violation
       assertEquals("Should not see any quota violations after writing 2MB of data", 0, violatedQuotas.size());
@@ -222,15 +227,15 @@ public class TestQuotaObserverChoreWithMiniCluster {
       violatedQuotas = violationNotifier.snapshotTablesInViolation();
     }
 
-    SpaceViolationPolicy vp1 = violatedQuotas.remove(tn1);
-    assertNotNull("tn1 should be in violation", vp1);
-    assertEquals(violationPolicy, vp1);
-    SpaceViolationPolicy vp2 = violatedQuotas.remove(tn2);
-    assertNotNull("tn2 should be in violation", vp2);
-    assertEquals(violationPolicy, vp2);
-    SpaceViolationPolicy vp3 = violatedQuotas.remove(tn3);
-    assertNotNull("tn3 should be in violation", vp3);
-    assertEquals(violationPolicy, vp3);
+    SpaceQuotaSnapshot snapshot1 = violatedQuotas.remove(tn1);
+    assertNotNull("tn1 should be in violation", snapshot1);
+    assertEquals(violationPolicy, snapshot1.getPolicy());
+    SpaceQuotaSnapshot snapshot2 = violatedQuotas.remove(tn2);
+    assertNotNull("tn2 should be in violation", snapshot2);
+    assertEquals(violationPolicy, snapshot2.getPolicy());
+    SpaceQuotaSnapshot snapshot3 = violatedQuotas.remove(tn3);
+    assertNotNull("tn3 should be in violation", snapshot3);
+    assertEquals(violationPolicy, snapshot3.getPolicy());
     assertTrue("Unexpected additional quota violations: " + violatedQuotas, violatedQuotas.isEmpty());
   }
 
@@ -257,7 +262,7 @@ public class TestQuotaObserverChoreWithMiniCluster {
 
     helper.writeData(tn1, 2L * SpaceQuotaHelperForTests.ONE_MEGABYTE);
     admin.flush(tn1);
-    Map<TableName,SpaceViolationPolicy> violatedQuotas = violationNotifier.snapshotTablesInViolation();
+    Map<TableName,SpaceQuotaSnapshot> violatedQuotas = violationNotifier.snapshotTablesInViolation();
     for (int i = 0; i < 5; i++) {
       // Check a few times to make sure we don't prematurely move to violation
       assertEquals("Should not see any quota violations after writing 2MB of data", 0,
@@ -285,12 +290,12 @@ public class TestQuotaObserverChoreWithMiniCluster {
       violatedQuotas = violationNotifier.snapshotTablesInViolation();
     }
 
-    SpaceViolationPolicy actualPolicyTN1 = violatedQuotas.get(tn1);
+    SpaceQuotaSnapshot actualPolicyTN1 = violatedQuotas.get(tn1);
     assertNotNull("Expected to see violation policy for tn1", actualPolicyTN1);
-    assertEquals(namespaceViolationPolicy, actualPolicyTN1);
-    SpaceViolationPolicy actualPolicyTN2 = violatedQuotas.get(tn2);
+    assertEquals(namespaceViolationPolicy, actualPolicyTN1.getPolicy());
+    SpaceQuotaSnapshot actualPolicyTN2 = violatedQuotas.get(tn2);
     assertNotNull("Expected to see violation policy for tn2", actualPolicyTN2);
-    assertEquals(namespaceViolationPolicy, actualPolicyTN2);
+    assertEquals(namespaceViolationPolicy, actualPolicyTN2.getPolicy());
 
     // Override the namespace quota with a table quota
     final long tableSizeLimit = SpaceQuotaHelperForTests.ONE_MEGABYTE;
@@ -302,9 +307,9 @@ public class TestQuotaObserverChoreWithMiniCluster {
     // Keep checking for the table quota policy to override the namespace quota
     while (true) {
       violatedQuotas = violationNotifier.snapshotTablesInViolation();
-      SpaceViolationPolicy actualTableViolationPolicy = violatedQuotas.get(tn1);
-      assertNotNull("Violation policy should never be null", actualTableViolationPolicy);
-      if (tableViolationPolicy != actualTableViolationPolicy) {
+      SpaceQuotaSnapshot actualTableSnapshot = violatedQuotas.get(tn1);
+      assertNotNull("Violation policy should never be null", actualTableSnapshot);
+      if (tableViolationPolicy != actualTableSnapshot.getPolicy()) {
         LOG.debug("Saw unexpected table violation policy, waiting and re-checking.");
         try {
           Thread.sleep(1000);
@@ -314,14 +319,14 @@ public class TestQuotaObserverChoreWithMiniCluster {
         }
         continue;
       }
-      assertEquals(tableViolationPolicy, actualTableViolationPolicy);
+      assertEquals(tableViolationPolicy, actualTableSnapshot.getPolicy());
       break;
     }
 
     // This should not change with the introduction of the table quota for tn1
     actualPolicyTN2 = violatedQuotas.get(tn2);
     assertNotNull("Expected to see violation policy for tn2", actualPolicyTN2);
-    assertEquals(namespaceViolationPolicy, actualPolicyTN2);
+    assertEquals(namespaceViolationPolicy, actualPolicyTN2.getPolicy());
   }
 
   @Test

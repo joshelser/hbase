@@ -27,6 +27,8 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.ScheduledChore;
 import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.shaded.protobuf.ProtobufUtil;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceViolation;
 
 /**
  * A {@link ScheduledChore} which periodically updates a local copy of Tables which have
@@ -72,16 +74,17 @@ public class SpaceQuotaViolationPolicyRefresherChore extends ScheduledChore {
       final Map<TableName, SpaceViolationPolicy> activeViolationPolicies =
           manager.getActivePoliciesAsMap();
       // Tables with policies that should be enforced
-      final Map<TableName, SpaceViolationPolicy> violationPolicies =
-          manager.getViolationPoliciesToEnforce();
+      final Map<TableName, SpaceViolation> violations =
+          manager.getViolationsToEnforce();
       if (LOG.isTraceEnabled()) {
         LOG.trace(activeViolationPolicies.size() + " policies are currently active, "
-            + "this server should have " + violationPolicies.size() + " active");
+            + "this server should have " + violations.size() + " active");
       }
       // Ensure each policy which should be enacted is enacted.
-      for (Entry<TableName, SpaceViolationPolicy> entry : violationPolicies.entrySet()) {
+      for (Entry<TableName, SpaceViolation> entry : violations.entrySet()) {
         final TableName tableName = entry.getKey();
-        final SpaceViolationPolicy policyToEnforce = entry.getValue();
+        final SpaceViolation violationFromTable = entry.getValue();
+        final SpaceViolationPolicy policyToEnforce = ProtobufUtil.toViolationPolicy(violationFromTable.getPolicy());
         final SpaceViolationPolicy currentPolicy = activeViolationPolicies.get(tableName);
         if (currentPolicy != policyToEnforce) {
           if (LOG.isTraceEnabled()) {
@@ -94,7 +97,7 @@ public class SpaceQuotaViolationPolicyRefresherChore extends ScheduledChore {
       Iterator<TableName> iter = activeViolationPolicies.keySet().iterator();
       while (iter.hasNext()) {
         final TableName localTableWithPolicy = iter.next();
-        if (!violationPolicies.containsKey(localTableWithPolicy)) {
+        if (!violations.containsKey(localTableWithPolicy)) {
           if (LOG.isTraceEnabled()) {
             LOG.trace("Removing quota violation policy on " + localTableWithPolicy);
           }

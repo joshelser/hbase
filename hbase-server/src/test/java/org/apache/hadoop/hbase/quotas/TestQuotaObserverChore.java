@@ -30,6 +30,7 @@ import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.shaded.protobuf.ProtobufUtil;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceQuota;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceViolation;
 import org.apache.hadoop.hbase.testclassification.SmallTests;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.Before;
@@ -51,7 +52,7 @@ public class TestQuotaObserverChore {
     conn = mock(Connection.class);
     chore = mock(QuotaObserverChore.class);
     // Set up some rules to call the real method on the mock.
-    when(chore.getViolationPolicy(any(SpaceQuota.class))).thenCallRealMethod();
+    when(chore.getViolation(any(SpaceQuota.class), any(long.class))).thenCallRealMethod();
   }
 
   @Test
@@ -87,17 +88,36 @@ public class TestQuotaObserverChore {
   @Test
   public void testExtractViolationPolicy() {
     for (SpaceViolationPolicy policy : SpaceViolationPolicy.values()) {
+      if (SpaceViolationPolicy.NONE == policy) {
+        continue;
+      }
       SpaceQuota spaceQuota = SpaceQuota.newBuilder()
           .setSoftLimit(1024L)
           .setViolationPolicy(ProtobufUtil.toProtoViolationPolicy(policy))
           .build();
-      assertEquals(policy, chore.getViolationPolicy(spaceQuota));
+      SpaceViolation violation = SpaceViolation.newBuilder()
+          .setLimit(1024L)
+          .setUsage(2048L)
+          .setPolicy(ProtobufUtil.toProtoViolationPolicy(policy))
+          .build();
+      assertEquals(violation, chore.getViolation(spaceQuota, 2048L));
     }
+    // No policy should throw an error
     SpaceQuota malformedQuota = SpaceQuota.newBuilder()
         .setSoftLimit(1024L)
         .build();
     try {
-      chore.getViolationPolicy(malformedQuota);
+      chore.getViolation(malformedQuota, 0L);
+      fail("Should have thrown an IllegalArgumentException.");
+    } catch (IllegalArgumentException e) {
+      // Pass
+    }
+    // No soft limit should throw an error
+    malformedQuota = SpaceQuota.newBuilder()
+        .setViolationPolicy(ProtobufUtil.toProtoViolationPolicy(SpaceViolationPolicy.DISABLE))
+        .build();
+    try {
+      chore.getViolation(malformedQuota, 0L);
       fail("Should have thrown an IllegalArgumentException.");
     } catch (IllegalArgumentException e) {
       // Pass

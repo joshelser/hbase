@@ -23,6 +23,7 @@ import java.util.Map.Entry;
 
 import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.shaded.protobuf.ProtobufUtil;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.Quotas;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceQuota;
 
@@ -60,24 +61,22 @@ public class NamespaceQuotaViolationStore implements QuotaViolationStore<String>
   }
 
   @Override
-  public ViolationState getCurrentState(String namespace) {
+  public SpaceQuotaSnapshot getCurrentState(String namespace) {
     // Defer the "current state" to the chore
     return this.chore.getNamespaceQuotaViolation(namespace);
   }
 
   @Override
-  public ViolationState getTargetState(String subject, SpaceQuota spaceQuota) {
+  public SpaceQuotaSnapshot getTargetState(String subject, SpaceQuota spaceQuota) {
     final long sizeLimitInBytes = spaceQuota.getSoftLimit();
     long sum = 0L;
     for (Entry<HRegionInfo,Long> entry : filterBySubject(subject)) {
       sum += entry.getValue();
-      if (sum > sizeLimitInBytes) {
-        // Short-circuit early
-        return ViolationState.IN_VIOLATION;
-      }
     }
     // Observance is defined as the size of the table being less than the limit
-    return sum <= sizeLimitInBytes ? ViolationState.IN_OBSERVANCE : ViolationState.IN_VIOLATION;
+    SpaceViolationPolicy policy = sum <= sizeLimitInBytes ? SpaceViolationPolicy.NONE
+        : ProtobufUtil.toViolationPolicy(spaceQuota.getViolationPolicy());
+    return new SpaceQuotaSnapshot(policy, sum, sizeLimitInBytes);
   }
 
   @Override
@@ -91,8 +90,8 @@ public class NamespaceQuotaViolationStore implements QuotaViolationStore<String>
   }
 
   @Override
-  public void setCurrentState(String namespace, ViolationState state) {
+  public void setCurrentState(String namespace, SpaceQuotaSnapshot snapshot) {
     // Defer the "current state" to the chore
-    this.chore.setNamespaceQuotaViolation(namespace, state);
+    this.chore.setNamespaceQuotaViolation(namespace, snapshot);
   }
 }

@@ -22,6 +22,7 @@ import org.apache.hadoop.hbase.quotas.policies.DisableTableViolationPolicyEnforc
 import org.apache.hadoop.hbase.quotas.policies.NoInsertsViolationPolicyEnforcement;
 import org.apache.hadoop.hbase.quotas.policies.NoWritesCompactionsViolationPolicyEnforcement;
 import org.apache.hadoop.hbase.quotas.policies.NoWritesViolationPolicyEnforcement;
+import org.apache.hadoop.hbase.quotas.policies.NoopViolationPolicyEnforcement;
 import org.apache.hadoop.hbase.regionserver.RegionServerServices;
 
 /**
@@ -42,6 +43,9 @@ public class SpaceViolationPolicyEnforcementFactory {
       RegionServerServices rss, TableName tableName, SpaceViolationPolicy policy) {
     SpaceViolationPolicyEnforcement enforcement;
     switch (policy) {
+      case NONE:
+        enforcement = NoopViolationPolicyEnforcement.getInstance();
+        break;
       case DISABLE:
         enforcement = new DisableTableViolationPolicyEnforcement();
         break;

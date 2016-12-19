@@ -31,7 +31,6 @@ import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.NamespaceDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Connection;
-import org.apache.hadoop.hbase.quotas.QuotaViolationStore.ViolationState;
 import org.apache.hadoop.hbase.shaded.protobuf.ProtobufUtil;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.Quotas;
@@ -110,17 +109,17 @@ public class TestNamespaceQuotaViolationStore {
     regionReports.put(new HRegionInfo(tn1, Bytes.toBytes(1), Bytes.toBytes(2)), 1024L * 256L);
 
     // Below the quota
-    assertEquals(ViolationState.IN_OBSERVANCE, store.getTargetState(NS, quota));
+    assertEquals(SpaceViolationPolicy.NONE, store.getTargetState(NS, quota).getPolicy());
 
     regionReports.put(new HRegionInfo(tn2, Bytes.toBytes(2), Bytes.toBytes(3)), 1024L * 256L);
 
     // Equal to the quota is still in observance
-    assertEquals(ViolationState.IN_OBSERVANCE, store.getTargetState(NS, quota));
+    assertEquals(SpaceViolationPolicy.NONE, store.getTargetState(NS, quota).getPolicy());
 
     regionReports.put(new HRegionInfo(tn2, Bytes.toBytes(3), Bytes.toBytes(4)), 1024L);
 
     // Exceeds the quota, should be in violation
-    assertEquals(ViolationState.IN_VIOLATION, store.getTargetState(NS, quota));
+    assertEquals(SpaceViolationPolicy.DISABLE, store.getTargetState(NS, quota).getPolicy());
   }
 
   @Test

@@ -24,6 +24,7 @@ import java.util.Map.Entry;
 import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.shaded.protobuf.ProtobufUtil;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.Quotas;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceQuota;
 
@@ -60,24 +61,22 @@ public class TableQuotaViolationStore implements QuotaViolationStore<TableName> 
   }
 
   @Override
-  public ViolationState getCurrentState(TableName table) {
+  public SpaceQuotaSnapshot getCurrentState(TableName table) {
     // Defer the "current state" to the chore
     return chore.getTableQuotaViolation(table);
   }
 
   @Override
-  public ViolationState getTargetState(TableName table, SpaceQuota spaceQuota) {
+  public SpaceQuotaSnapshot getTargetState(TableName table, SpaceQuota spaceQuota) {
     final long sizeLimitInBytes = spaceQuota.getSoftLimit();
     long sum = 0L;
     for (Entry<HRegionInfo,Long> entry : filterBySubject(table)) {
       sum += entry.getValue();
-      if (sum > sizeLimitInBytes) {
-        // Short-circuit early
-        return ViolationState.IN_VIOLATION;
-      }
     }
     // Observance is defined as the size of the table being less than the limit
-    return sum <= sizeLimitInBytes ? ViolationState.IN_OBSERVANCE : ViolationState.IN_VIOLATION;
+    SpaceViolationPolicy policy = sum <= sizeLimitInBytes ? SpaceViolationPolicy.NONE
+        : ProtobufUtil.toViolationPolicy(spaceQuota.getViolationPolicy());
+    return new SpaceQuotaSnapshot(policy, sum, sizeLimitInBytes);
   }
 
   @Override
@@ -91,8 +90,8 @@ public class TableQuotaViolationStore implements QuotaViolationStore<TableName> 
   }
 
   @Override
-  public void setCurrentState(TableName table, ViolationState state) {
+  public void setCurrentState(TableName table, SpaceQuotaSnapshot snapshot) {
     // Defer the "current state" to the chore
-    this.chore.setTableQuotaViolation(table, state);
+    this.chore.setTableQuotaViolation(table, snapshot);
   }
 }

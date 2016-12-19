@@ -95,3 +95,11 @@ message SpaceQuota {
 message SpaceLimitRequest {
   optional SpaceQuota quota = 1;
 }
+
+// Message stored in the value of hbase:quota table to denote the violation of a quota by a
+// table or namespace.
+message SpaceViolation {
+  optional SpaceViolationPolicy policy = 1;
+  optional uint64 usage = 2;
+  optional uint64 limit = 3;
+}

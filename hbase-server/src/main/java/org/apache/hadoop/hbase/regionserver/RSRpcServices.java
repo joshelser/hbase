@@ -2167,6 +2167,8 @@ public class RSRpcServices implements HBaseRPCErrorHandler,
       boolean bypass = false;
       boolean loaded = false;
 
+      ActivePolicyEnforcement spaceQuotaEnforcement = getSpaceQuotaManager().getActiveEnforcements();
+
       if (!request.hasBulkToken()) {
         // Old style bulk load. This will not be supported in future releases
         List<Pair<byte[], String>> familyPaths =

@@ -27,22 +27,17 @@ import org.apache.hadoop.hbase.client.Connection;
  */
 public class SpaceQuotaViolationNotifierForTest implements SpaceQuotaViolationNotifier {
 
-  private final Map<TableName,SpaceViolationPolicy> tablesInViolation = new HashMap<>();
+  private final Map<TableName,SpaceQuotaSnapshot> tablesInViolation = new HashMap<>();
 
   @Override
   public void initialize(Connection conn) {}
 
   @Override
-  public void transitionTableToViolation(TableName tableName, SpaceViolationPolicy violationPolicy) {
-    tablesInViolation.put(tableName, violationPolicy);
+  public void transitionTable(TableName tableName, SpaceQuotaSnapshot snapshot) {
+    tablesInViolation.put(tableName, snapshot);
   }
 
-  @Override
-  public void transitionTableToObservance(TableName tableName) {
-    tablesInViolation.remove(tableName);
-  }
-
-  public Map<TableName,SpaceViolationPolicy> snapshotTablesInViolation() {
+  public Map<TableName,SpaceQuotaSnapshot> snapshotTablesInViolation() {
     return new HashMap<>(this.tablesInViolation);
   }
 

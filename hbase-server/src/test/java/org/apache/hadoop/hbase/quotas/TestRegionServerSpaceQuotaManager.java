@@ -48,6 +48,7 @@ import org.apache.hadoop.hbase.quotas.policies.NoWritesCompactionsViolationPolic
 import org.apache.hadoop.hbase.quotas.policies.NoWritesViolationPolicyEnforcement;
 import org.apache.hadoop.hbase.quotas.policies.NoopViolationPolicyEnforcement;
 import org.apache.hadoop.hbase.regionserver.RegionServerServices;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceViolation;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
@@ -70,8 +71,8 @@ public class TestRegionServerSpaceQuotaManager {
     conn = mock(Connection.class);
     quotaTable = mock(Table.class);
     scanner = mock(ResultScanner.class);
-    // Call the real getActivePolicyEnforcements()
-    when(quotaManager.getViolationPoliciesToEnforce()).thenCallRealMethod();
+    // Call the real getViolationsToEnforce()
+    when(quotaManager.getViolationsToEnforce()).thenCallRealMethod();
     // Mock out creating a scanner
     when(quotaManager.getConnection()).thenReturn(conn);
     when(conn.getTable(QuotaUtil.QUOTA_TABLE_NAME)).thenReturn(quotaTable);
@@ -81,7 +82,7 @@ public class TestRegionServerSpaceQuotaManager {
       @Override
       public Void answer(InvocationOnMock invocation) throws Throwable {
         Result result = invocation.getArgumentAt(0, Result.class);
-        Map<TableName,SpaceViolationPolicy> policies = invocation.getArgumentAt(1, Map.class);
+        Map<TableName,SpaceViolation> policies = invocation.getArgumentAt(1, Map.class);
         QuotaTableUtil.extractViolationPolicy(result, policies);
         return null;
       }
@@ -94,7 +95,7 @@ public class TestRegionServerSpaceQuotaManager {
     results.add(Result.create(Collections.emptyList()));
     when(scanner.iterator()).thenReturn(results.iterator());
     try {
-      quotaManager.getViolationPoliciesToEnforce();
+      quotaManager.getViolationsToEnforce();
       fail("Expected an IOException, but did not receive one.");
     } catch (IOException e) {
       // Expected an error because we had no cells in the row.
@@ -110,7 +111,7 @@ public class TestRegionServerSpaceQuotaManager {
     results.add(Result.create(Collections.singletonList(c)));
     when(scanner.iterator()).thenReturn(results.iterator());
     try {
-      quotaManager.getViolationPoliciesToEnforce();
+      quotaManager.getViolationsToEnforce();
       fail("Expected an IOException, but did not receive one.");
     } catch (IOException e) {
       // Expected an error because we were missing the column we expected in this row.
@@ -125,7 +126,7 @@ public class TestRegionServerSpaceQuotaManager {
     results.add(Result.create(Collections.singletonList(c)));
     when(scanner.iterator()).thenReturn(results.iterator());
     try {
-      quotaManager.getViolationPoliciesToEnforce();
+      quotaManager.getViolationsToEnforce();
       fail("Expected an IOException, but did not receive one.");
     } catch (IOException e) {
       // We provided a garbage serialized protobuf message (empty byte array), this should
