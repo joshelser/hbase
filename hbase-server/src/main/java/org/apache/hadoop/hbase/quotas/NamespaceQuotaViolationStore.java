@@ -23,6 +23,7 @@ import java.util.Map.Entry;
 
 import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.quotas.SpaceQuotaSnapshot.SpaceQuotaStatus;
 import org.apache.hadoop.hbase.shaded.protobuf.ProtobufUtil;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.Quotas;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceQuota;
@@ -74,9 +75,9 @@ public class NamespaceQuotaViolationStore implements QuotaViolationStore<String>
       sum += entry.getValue();
     }
     // Observance is defined as the size of the table being less than the limit
-    SpaceViolationPolicy policy = sum <= sizeLimitInBytes ? SpaceViolationPolicy.NONE
-        : ProtobufUtil.toViolationPolicy(spaceQuota.getViolationPolicy());
-    return new SpaceQuotaSnapshot(policy, sum, sizeLimitInBytes);
+    SpaceQuotaStatus status = sum <= sizeLimitInBytes ? SpaceQuotaStatus.notInViolation()
+        : new SpaceQuotaStatus(ProtobufUtil.toViolationPolicy(spaceQuota.getViolationPolicy()));
+    return new SpaceQuotaSnapshot(status, sum, sizeLimitInBytes);
   }
 
   @Override

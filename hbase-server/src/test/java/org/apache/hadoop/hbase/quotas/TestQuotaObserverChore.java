@@ -17,8 +17,6 @@
 package org.apache.hadoop.hbase.quotas;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -28,9 +26,6 @@ import java.util.Map;
 import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Connection;
-import org.apache.hadoop.hbase.shaded.protobuf.ProtobufUtil;
-import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceQuota;
-import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceViolation;
 import org.apache.hadoop.hbase.testclassification.SmallTests;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.Before;
@@ -51,8 +46,6 @@ public class TestQuotaObserverChore {
   public void setup() throws Exception {
     conn = mock(Connection.class);
     chore = mock(QuotaObserverChore.class);
-    // Set up some rules to call the real method on the mock.
-    when(chore.getViolation(any(SpaceQuota.class), any(long.class))).thenCallRealMethod();
   }
 
   @Test
@@ -83,44 +76,5 @@ public class TestQuotaObserverChore {
     assertEquals(numTable1Regions, Iterables.size(store.filterBySubject(tn1)));
     assertEquals(numTable2Regions, Iterables.size(store.filterBySubject(tn2)));
     assertEquals(numTable3Regions, Iterables.size(store.filterBySubject(tn3)));
-  }
-
-  @Test
-  public void testExtractViolationPolicy() {
-    for (SpaceViolationPolicy policy : SpaceViolationPolicy.values()) {
-      if (SpaceViolationPolicy.NONE == policy) {
-        continue;
-      }
-      SpaceQuota spaceQuota = SpaceQuota.newBuilder()
-          .setSoftLimit(1024L)
-          .setViolationPolicy(ProtobufUtil.toProtoViolationPolicy(policy))
-          .build();
-      SpaceViolation violation = SpaceViolation.newBuilder()
-          .setLimit(1024L)
-          .setUsage(2048L)
-          .setPolicy(ProtobufUtil.toProtoViolationPolicy(policy))
-          .build();
-      assertEquals(violation, chore.getViolation(spaceQuota, 2048L));
-    }
-    // No policy should throw an error
-    SpaceQuota malformedQuota = SpaceQuota.newBuilder()
-        .setSoftLimit(1024L)
-        .build();
-    try {
-      chore.getViolation(malformedQuota, 0L);
-      fail("Should have thrown an IllegalArgumentException.");
-    } catch (IllegalArgumentException e) {
-      // Pass
-    }
-    // No soft limit should throw an error
-    malformedQuota = SpaceQuota.newBuilder()
-        .setViolationPolicy(ProtobufUtil.toProtoViolationPolicy(SpaceViolationPolicy.DISABLE))
-        .build();
-    try {
-      chore.getViolation(malformedQuota, 0L);
-      fail("Should have thrown an IllegalArgumentException.");
-    } catch (IllegalArgumentException e) {
-      // Pass
-    }
   }
 }

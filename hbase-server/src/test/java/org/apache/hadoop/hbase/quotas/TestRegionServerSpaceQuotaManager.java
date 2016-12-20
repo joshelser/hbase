@@ -42,6 +42,7 @@ import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.quotas.SpaceQuotaSnapshot.SpaceQuotaStatus;
 import org.apache.hadoop.hbase.quotas.policies.DisableTableViolationPolicyEnforcement;
 import org.apache.hadoop.hbase.quotas.policies.NoInsertsViolationPolicyEnforcement;
 import org.apache.hadoop.hbase.quotas.policies.NoWritesCompactionsViolationPolicyEnforcement;
@@ -143,13 +144,13 @@ public class TestRegionServerSpaceQuotaManager {
     when(quotaManager.getActivePoliciesAsMap()).thenCallRealMethod();
 
     NoInsertsViolationPolicyEnforcement noInsertsPolicy = new NoInsertsViolationPolicyEnforcement();
-    SpaceQuotaSnapshot noInsertsSnapshot = new SpaceQuotaSnapshot(SpaceViolationPolicy.NO_INSERTS, 256L, 1024L);
+    SpaceQuotaSnapshot noInsertsSnapshot = new SpaceQuotaSnapshot(new SpaceQuotaStatus(SpaceViolationPolicy.NO_INSERTS), 256L, 1024L);
     noInsertsPolicy.initialize(rss, TableName.valueOf("no_inserts"), noInsertsSnapshot);
     enforcements.put(noInsertsPolicy.getTableName(), noInsertsPolicy);
     expectedPolicies.put(noInsertsPolicy.getTableName(), noInsertsSnapshot);
 
     NoWritesViolationPolicyEnforcement noWritesPolicy = new NoWritesViolationPolicyEnforcement();
-    SpaceQuotaSnapshot noWritesSnapshot = new SpaceQuotaSnapshot(SpaceViolationPolicy.NO_WRITES, 512L, 2048L);
+    SpaceQuotaSnapshot noWritesSnapshot = new SpaceQuotaSnapshot(new SpaceQuotaStatus(SpaceViolationPolicy.NO_WRITES), 512L, 2048L);
     noWritesPolicy.initialize(rss, TableName.valueOf("no_writes"), noWritesSnapshot);
     enforcements.put(noWritesPolicy.getTableName(), noWritesPolicy);
     expectedPolicies.put(noWritesPolicy.getTableName(), noWritesSnapshot);
@@ -157,7 +158,7 @@ public class TestRegionServerSpaceQuotaManager {
     NoWritesCompactionsViolationPolicyEnforcement noWritesCompactionsPolicy =
         new NoWritesCompactionsViolationPolicyEnforcement();
     SpaceQuotaSnapshot noWritesCompactionsSnapshot = new SpaceQuotaSnapshot(
-        SpaceViolationPolicy.NO_WRITES_COMPACTIONS, 1024L, 4096L);
+        new SpaceQuotaStatus(SpaceViolationPolicy.NO_WRITES_COMPACTIONS), 1024L, 4096L);
     noWritesCompactionsPolicy.initialize(rss, TableName.valueOf("no_writes_compactions"), noWritesCompactionsSnapshot);
     enforcements.put(noWritesCompactionsPolicy.getTableName(), noWritesCompactionsPolicy);
     expectedPolicies.put(noWritesCompactionsPolicy.getTableName(),
@@ -165,7 +166,7 @@ public class TestRegionServerSpaceQuotaManager {
 
     DisableTableViolationPolicyEnforcement disablePolicy = new DisableTableViolationPolicyEnforcement();
     SpaceQuotaSnapshot disableSnapshot = new SpaceQuotaSnapshot(
-        SpaceViolationPolicy.DISABLE, 2048L, 8192L);
+        new SpaceQuotaStatus(SpaceViolationPolicy.DISABLE), 2048L, 8192L);
     disablePolicy.initialize(rss, TableName.valueOf("disable"), disableSnapshot);
     enforcements.put(disablePolicy.getTableName(), disablePolicy);
     expectedPolicies.put(disablePolicy.getTableName(), disableSnapshot);
@@ -179,7 +180,7 @@ public class TestRegionServerSpaceQuotaManager {
   @Test
   public void testExceptionOnPolicyEnforcementEnable() throws Exception {
     final TableName tableName = TableName.valueOf("foo");
-    final SpaceQuotaSnapshot snapshot = new SpaceQuotaSnapshot(SpaceViolationPolicy.DISABLE, 1024L, 2048L);
+    final SpaceQuotaSnapshot snapshot = new SpaceQuotaSnapshot(new SpaceQuotaStatus(SpaceViolationPolicy.DISABLE), 1024L, 2048L);
     RegionServerServices rss = mock(RegionServerServices.class);
     SpaceViolationPolicyEnforcementFactory factory = mock(
         SpaceViolationPolicyEnforcementFactory.class);
@@ -199,7 +200,7 @@ public class TestRegionServerSpaceQuotaManager {
   @Test
   public void testExceptionOnPolicyEnforcementDisable() throws Exception {
     final TableName tableName = TableName.valueOf("foo");
-    final SpaceQuotaSnapshot snapshot = new SpaceQuotaSnapshot(SpaceViolationPolicy.DISABLE, 1024L, 2048L);
+    final SpaceQuotaSnapshot snapshot = new SpaceQuotaSnapshot(new SpaceQuotaStatus(SpaceViolationPolicy.DISABLE), 1024L, 2048L);
     RegionServerServices rss = mock(RegionServerServices.class);
     SpaceViolationPolicyEnforcementFactory factory = mock(
         SpaceViolationPolicyEnforcementFactory.class);

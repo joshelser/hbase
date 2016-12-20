@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.util.Map.Entry;
 
 import org.apache.hadoop.hbase.HRegionInfo;
+import org.apache.hadoop.hbase.quotas.SpaceQuotaSnapshot.SpaceQuotaStatus;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceQuota;
 
 /**
@@ -38,7 +39,7 @@ public interface QuotaViolationStore<T> {
   /**
    * Singleton to represent a table without a quota defined. It is never in violation.
    */
-  public static final SpaceQuotaSnapshot NO_QUOTA = new SpaceQuotaSnapshot(SpaceViolationPolicy.NONE, -1, -1);
+  public static final SpaceQuotaSnapshot NO_QUOTA = new SpaceQuotaSnapshot(SpaceQuotaStatus.notInViolation(), -1, -1);
 
   /**
    * Fetch the Quota for the given table. May be null.

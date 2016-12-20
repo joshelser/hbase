@@ -109,17 +109,18 @@ public class TestNamespaceQuotaViolationStore {
     regionReports.put(new HRegionInfo(tn1, Bytes.toBytes(1), Bytes.toBytes(2)), 1024L * 256L);
 
     // Below the quota
-    assertEquals(SpaceViolationPolicy.NONE, store.getTargetState(NS, quota).getPolicy());
+    assertEquals(false, store.getTargetState(NS, quota).getQuotaStatus().isInViolation());
 
     regionReports.put(new HRegionInfo(tn2, Bytes.toBytes(2), Bytes.toBytes(3)), 1024L * 256L);
 
     // Equal to the quota is still in observance
-    assertEquals(SpaceViolationPolicy.NONE, store.getTargetState(NS, quota).getPolicy());
+    assertEquals(false, store.getTargetState(NS, quota).getQuotaStatus().isInViolation());
 
     regionReports.put(new HRegionInfo(tn2, Bytes.toBytes(3), Bytes.toBytes(4)), 1024L);
 
     // Exceeds the quota, should be in violation
-    assertEquals(SpaceViolationPolicy.DISABLE, store.getTargetState(NS, quota).getPolicy());
+    assertEquals(true, store.getTargetState(NS, quota).getQuotaStatus().isInViolation());
+    assertEquals(SpaceViolationPolicy.DISABLE, store.getTargetState(NS, quota).getQuotaStatus().getPolicy());
   }
 
   @Test

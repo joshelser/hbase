@@ -36,8 +36,7 @@ public class TableSpaceQuotaViolationNotifier implements SpaceQuotaViolationNoti
   @Override
   public void transitionTable(
       TableName tableName, SpaceQuotaSnapshot violation) throws IOException {
-    final Put p = QuotaTableUtil.putViolationPolicy(
-        tableName, SpaceQuotaSnapshot.toProtoSpaceViolation(violation));
+    final Put p = QuotaTableUtil.putViolationPolicy(tableName, violation);
     try (Table quotaTable = conn.getTable(QuotaTableUtil.QUOTA_TABLE_NAME)) {
       if (LOG.isTraceEnabled()) {
         LOG.trace("Persisting a space quota " + violation + " for " + tableName);

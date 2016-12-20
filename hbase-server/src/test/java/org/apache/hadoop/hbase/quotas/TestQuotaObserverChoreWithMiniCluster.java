@@ -153,7 +153,7 @@ public class TestQuotaObserverChoreWithMiniCluster {
     Entry<TableName,SpaceQuotaSnapshot> entry = Iterables.getOnlyElement(quotaSnapshots.entrySet());
     assertEquals(tn, entry.getKey());
     final SpaceQuotaSnapshot snapshot = entry.getValue();
-    assertEquals(violationPolicy, snapshot.getPolicy());
+    assertEquals(violationPolicy, snapshot.getQuotaStatus().getPolicy());
     assertEquals(sizeLimit, snapshot.getLimit());
     assertTrue(
         "The usage should be greater than the limit, but were " + snapshot.getUsage() + " and "
@@ -229,13 +229,13 @@ public class TestQuotaObserverChoreWithMiniCluster {
 
     SpaceQuotaSnapshot snapshot1 = violatedQuotas.remove(tn1);
     assertNotNull("tn1 should be in violation", snapshot1);
-    assertEquals(violationPolicy, snapshot1.getPolicy());
+    assertEquals(violationPolicy, snapshot1.getQuotaStatus().getPolicy());
     SpaceQuotaSnapshot snapshot2 = violatedQuotas.remove(tn2);
     assertNotNull("tn2 should be in violation", snapshot2);
-    assertEquals(violationPolicy, snapshot2.getPolicy());
+    assertEquals(violationPolicy, snapshot2.getQuotaStatus().getPolicy());
     SpaceQuotaSnapshot snapshot3 = violatedQuotas.remove(tn3);
     assertNotNull("tn3 should be in violation", snapshot3);
-    assertEquals(violationPolicy, snapshot3.getPolicy());
+    assertEquals(violationPolicy, snapshot3.getQuotaStatus().getPolicy());
     assertTrue("Unexpected additional quota violations: " + violatedQuotas, violatedQuotas.isEmpty());
   }
 
@@ -292,10 +292,10 @@ public class TestQuotaObserverChoreWithMiniCluster {
 
     SpaceQuotaSnapshot actualPolicyTN1 = violatedQuotas.get(tn1);
     assertNotNull("Expected to see violation policy for tn1", actualPolicyTN1);
-    assertEquals(namespaceViolationPolicy, actualPolicyTN1.getPolicy());
+    assertEquals(namespaceViolationPolicy, actualPolicyTN1.getQuotaStatus().getPolicy());
     SpaceQuotaSnapshot actualPolicyTN2 = violatedQuotas.get(tn2);
     assertNotNull("Expected to see violation policy for tn2", actualPolicyTN2);
-    assertEquals(namespaceViolationPolicy, actualPolicyTN2.getPolicy());
+    assertEquals(namespaceViolationPolicy, actualPolicyTN2.getQuotaStatus().getPolicy());
 
     // Override the namespace quota with a table quota
     final long tableSizeLimit = SpaceQuotaHelperForTests.ONE_MEGABYTE;
@@ -309,7 +309,7 @@ public class TestQuotaObserverChoreWithMiniCluster {
       violatedQuotas = violationNotifier.snapshotTablesInViolation();
       SpaceQuotaSnapshot actualTableSnapshot = violatedQuotas.get(tn1);
       assertNotNull("Violation policy should never be null", actualTableSnapshot);
-      if (tableViolationPolicy != actualTableSnapshot.getPolicy()) {
+      if (tableViolationPolicy != actualTableSnapshot.getQuotaStatus().getPolicy()) {
         LOG.debug("Saw unexpected table violation policy, waiting and re-checking.");
         try {
           Thread.sleep(1000);
@@ -319,14 +319,14 @@ public class TestQuotaObserverChoreWithMiniCluster {
         }
         continue;
       }
-      assertEquals(tableViolationPolicy, actualTableSnapshot.getPolicy());
+      assertEquals(tableViolationPolicy, actualTableSnapshot.getQuotaStatus().getPolicy());
       break;
     }
 
     // This should not change with the introduction of the table quota for tn1
     actualPolicyTN2 = violatedQuotas.get(tn2);
     assertNotNull("Expected to see violation policy for tn2", actualPolicyTN2);
-    assertEquals(namespaceViolationPolicy, actualPolicyTN2.getPolicy());
+    assertEquals(namespaceViolationPolicy, actualPolicyTN2.getQuotaStatus().getPolicy());
   }
 
   @Test

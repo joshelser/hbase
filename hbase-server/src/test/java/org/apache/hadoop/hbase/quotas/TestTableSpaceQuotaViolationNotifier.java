@@ -33,7 +33,7 @@ import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Table;
-import org.apache.hadoop.hbase.shaded.protobuf.ProtobufUtil;
+import org.apache.hadoop.hbase.quotas.SpaceQuotaSnapshot.SpaceQuotaStatus;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.Before;
@@ -58,13 +58,15 @@ public class TestTableSpaceQuotaViolationNotifier {
   @Test
   public void testToViolation() throws Exception {
     final TableName tn = TableName.valueOf("inviolation");
-    final SpaceQuotaSnapshot snapshot = new SpaceQuotaSnapshot(SpaceViolationPolicy.NO_INSERTS, 1024L, 512L);
+    final SpaceQuotaSnapshot snapshot = new SpaceQuotaSnapshot(
+        new SpaceQuotaStatus(SpaceViolationPolicy.NO_INSERTS), 1024L, 512L);
     final Table quotaTable = mock(Table.class);
     when(conn.getTable(QuotaTableUtil.QUOTA_TABLE_NAME)).thenReturn(quotaTable);
 
     final Put expectedPut = new Put(Bytes.toBytes("t." + tn.getNameAsString()));
-    final QuotaProtos.SpaceViolation protoQuota = QuotaProtos.SpaceViolation.newBuilder()
-        .setPolicy(ProtobufUtil.toProtoViolationPolicy(snapshot.getPolicy()))
+    final QuotaProtos.SpaceQuotaSnapshot protoQuota = QuotaProtos.SpaceQuotaSnapshot.newBuilder()
+        .setStatus(QuotaProtos.SpaceQuotaStatus.newBuilder().setInViolation(true).setPolicy(
+            org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceViolationPolicy.NO_INSERTS))
         .setLimit(512L)
         .setUsage(1024L)
         .build();

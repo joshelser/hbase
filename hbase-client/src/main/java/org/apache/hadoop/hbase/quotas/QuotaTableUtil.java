@@ -50,9 +50,9 @@ import org.apache.hadoop.hbase.shaded.com.google.protobuf.ByteString;
 import org.apache.hadoop.hbase.shaded.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.hadoop.hbase.shaded.com.google.protobuf.UnsafeByteOperations;
 import org.apache.hadoop.hbase.shaded.protobuf.ProtobufUtil;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.Quotas;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceQuota;
-import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceViolation;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.Strings;
 
@@ -246,8 +246,8 @@ public class QuotaTableUtil {
     ByteString buffer = UnsafeByteOperations.unsafeWrap(
         c.getValueArray(), c.getValueOffset(), c.getValueLength());
     try {
-      SpaceViolation violation = SpaceViolation.parseFrom(buffer);
-      snapshots.put(targetTableName, SpaceQuotaSnapshot.toSpaceQuotaSnapshot(violation));
+      QuotaProtos.SpaceQuotaSnapshot snapshot = QuotaProtos.SpaceQuotaSnapshot.parseFrom(buffer);
+      snapshots.put(targetTableName, SpaceQuotaSnapshot.toSpaceQuotaSnapshot(snapshot));
     } catch (InvalidProtocolBufferException e) {
       throw new IllegalArgumentException(
           "Result did not contain a valid SpaceQuota protocol buffer message", e);
@@ -361,9 +361,9 @@ public class QuotaTableUtil {
   /**
    * Creates a {@link Put} to enable the given <code>policy</code> on the <code>table</code>.
    */
-  public static Put putViolationPolicy(TableName tableName, SpaceViolation violation) {
+  public static Put putViolationPolicy(TableName tableName, SpaceQuotaSnapshot snapshot) {
     Put p = new Put(getTableRowKey(tableName));
-    p.addColumn(QUOTA_FAMILY_USAGE, QUOTA_QUALIFIER_POLICY, violation.toByteArray());
+    p.addColumn(QUOTA_FAMILY_USAGE, QUOTA_QUALIFIER_POLICY, SpaceQuotaSnapshot.toProtoSnapshot(snapshot).toByteArray());
     return p;
   }
 

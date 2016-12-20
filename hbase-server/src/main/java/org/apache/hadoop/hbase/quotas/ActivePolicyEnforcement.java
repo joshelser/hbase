@@ -64,4 +64,9 @@ public class ActivePolicyEnforcement {
     }
     return policy;
   }
+
+  @Override
+  public String toString() {
+    return getClass().getSimpleName() + ": " + activePolicies;
+  }
 }

@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.quotas.SpaceQuotaSnapshot.SpaceQuotaStatus;
 import org.apache.hadoop.hbase.shaded.protobuf.ProtobufUtil;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.Quotas;
@@ -108,20 +109,20 @@ public class TestTableQuotaViolationStore {
     regionReports.put(new HRegionInfo(tn1, Bytes.toBytes(1), Bytes.toBytes(2)), 1024L * 256L);
 
     SpaceQuotaSnapshot tn1Snapshot = new SpaceQuotaSnapshot(
-        SpaceViolationPolicy.NONE, 1024L * 768L, 1024L * 1024L);
+        SpaceQuotaStatus.notInViolation(), 1024L * 768L, 1024L * 1024L);
 
     // Below the quota
     assertEquals(tn1Snapshot, store.getTargetState(tn1, quota));
 
     regionReports.put(new HRegionInfo(tn1, Bytes.toBytes(2), Bytes.toBytes(3)), 1024L * 256L);
-    tn1Snapshot = new SpaceQuotaSnapshot(SpaceViolationPolicy.NONE, 1024L * 1024L, 1024L * 1024L);
+    tn1Snapshot = new SpaceQuotaSnapshot(SpaceQuotaStatus.notInViolation(), 1024L * 1024L, 1024L * 1024L);
 
     // Equal to the quota is still in observance
     assertEquals(tn1Snapshot, store.getTargetState(tn1, quota));
 
     regionReports.put(new HRegionInfo(tn1, Bytes.toBytes(3), Bytes.toBytes(4)), 1024L);
     tn1Snapshot = new SpaceQuotaSnapshot(
-        SpaceViolationPolicy.DISABLE, 1024L * 1024L + 1024L, 1024L * 1024L);
+        new SpaceQuotaStatus(SpaceViolationPolicy.DISABLE), 1024L * 1024L + 1024L, 1024L * 1024L);
 
     // Exceeds the quota, should be in violation
     assertEquals(tn1Snapshot, store.getTargetState(tn1, quota));

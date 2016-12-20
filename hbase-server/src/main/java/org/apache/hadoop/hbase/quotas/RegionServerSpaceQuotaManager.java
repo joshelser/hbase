@@ -32,6 +32,7 @@ import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.quotas.SpaceQuotaSnapshot.SpaceQuotaStatus;
 import org.apache.hadoop.hbase.regionserver.RegionServerServices;
 import org.apache.hadoop.hbase.util.Bytes;
 
@@ -72,7 +73,7 @@ public class RegionServerSpaceQuotaManager {
       return;
     }
     if (null != spaceQuotaRefresher) {
-      LOG.warn("SpaceQuotaViolationPolicyRefresherChore has already been started!");
+      LOG.warn("RegionServerSpaceQuotaManager has already been started!");
       return;
     }
     this.spaceQuotaRefresher = new SpaceQuotaViolationPolicyRefresherChore(this);
@@ -137,10 +138,15 @@ public class RegionServerSpaceQuotaManager {
    * Enforces the given violationPolicy on the given table in this RegionServer.
    */
   public void enforceViolationPolicy(TableName tableName, SpaceQuotaSnapshot snapshot) {
+    SpaceQuotaStatus status = snapshot.getQuotaStatus();
+    if (!status.isInViolation()) {
+      throw new IllegalStateException(
+          tableName + " is not in violation. Violation policy should not be enabled.");
+    }
     if (LOG.isTraceEnabled()) {
       LOG.trace(
           "Enabling violation policy enforcement on " + tableName
-          + " with policy " + snapshot.getPolicy());
+          + " with policy " + status.getPolicy());
     }
     // Construct this outside of the lock
     final SpaceViolationPolicyEnforcement enforcement = getFactory().create(

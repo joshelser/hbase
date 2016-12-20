@@ -17,12 +17,12 @@
 package org.apache.hadoop.hbase.quotas;
 
 import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.quotas.SpaceQuotaSnapshot.SpaceQuotaStatus;
 import org.apache.hadoop.hbase.quotas.SpaceViolationPolicyEnforcement;
 import org.apache.hadoop.hbase.quotas.policies.DisableTableViolationPolicyEnforcement;
 import org.apache.hadoop.hbase.quotas.policies.NoInsertsViolationPolicyEnforcement;
 import org.apache.hadoop.hbase.quotas.policies.NoWritesCompactionsViolationPolicyEnforcement;
 import org.apache.hadoop.hbase.quotas.policies.NoWritesViolationPolicyEnforcement;
-import org.apache.hadoop.hbase.quotas.policies.NoopViolationPolicyEnforcement;
 import org.apache.hadoop.hbase.regionserver.RegionServerServices;
 
 /**
@@ -42,10 +42,11 @@ public class SpaceViolationPolicyEnforcementFactory {
   public SpaceViolationPolicyEnforcement create(
       RegionServerServices rss, TableName tableName, SpaceQuotaSnapshot snapshot) {
     SpaceViolationPolicyEnforcement enforcement;
-    switch (snapshot.getPolicy()) {
-      case NONE:
-        enforcement = NoopViolationPolicyEnforcement.getInstance();
-        break;
+    SpaceQuotaStatus status = snapshot.getQuotaStatus();
+    if (!status.isInViolation()) {
+      throw new IllegalArgumentException(tableName + " is not in violation. Snapshot=" + snapshot);
+    }
+    switch (status.getPolicy()) {
       case DISABLE:
         enforcement = new DisableTableViolationPolicyEnforcement();
         break;
@@ -59,7 +60,7 @@ public class SpaceViolationPolicyEnforcementFactory {
         enforcement = new NoInsertsViolationPolicyEnforcement();
         break;
       default:
-        throw new IllegalArgumentException("Unhandled SpaceViolationPolicy: " + snapshot.getPolicy());
+        throw new IllegalArgumentException("Unhandled SpaceViolationPolicy: " + status.getPolicy());
     }
     enforcement.initialize(rss, tableName, snapshot);
     return enforcement;

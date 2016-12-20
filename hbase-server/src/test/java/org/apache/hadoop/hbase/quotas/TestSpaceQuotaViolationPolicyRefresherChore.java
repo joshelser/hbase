@@ -31,6 +31,7 @@ import java.util.Map.Entry;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.quotas.SpaceQuotaSnapshot.SpaceQuotaStatus;
 import org.apache.hadoop.hbase.quotas.policies.DisableTableViolationPolicyEnforcement;
 import org.apache.hadoop.hbase.quotas.policies.NoInsertsViolationPolicyEnforcement;
 import org.apache.hadoop.hbase.quotas.policies.NoWritesCompactionsViolationPolicyEnforcement;
@@ -64,10 +65,19 @@ public class TestSpaceQuotaViolationPolicyRefresherChore {
   public void testPoliciesAreEnforced() throws IOException {
     // Create a number of policies that should be enforced (usage > limit)
     final Map<TableName,SpaceQuotaSnapshot> policiesToEnforce = new HashMap<>();
-    policiesToEnforce.put(TableName.valueOf("table1"), new SpaceQuotaSnapshot(SpaceViolationPolicy.DISABLE, 1024L, 512L));
-    policiesToEnforce.put(TableName.valueOf("table2"), new SpaceQuotaSnapshot(SpaceViolationPolicy.NO_INSERTS, 2048L, 512L));
-    policiesToEnforce.put(TableName.valueOf("table3"), new SpaceQuotaSnapshot(SpaceViolationPolicy.NO_WRITES, 4096L, 512L));
-    policiesToEnforce.put(TableName.valueOf("table4"), new SpaceQuotaSnapshot(SpaceViolationPolicy.NO_WRITES_COMPACTIONS, 8192L, 512L));
+    policiesToEnforce.put(
+        TableName.valueOf("table1"),
+        new SpaceQuotaSnapshot(new SpaceQuotaStatus(SpaceViolationPolicy.DISABLE), 1024L, 512L));
+    policiesToEnforce.put(
+        TableName.valueOf("table2"),
+        new SpaceQuotaSnapshot(new SpaceQuotaStatus(SpaceViolationPolicy.NO_INSERTS), 2048L, 512L));
+    policiesToEnforce.put(
+        TableName.valueOf("table3"),
+        new SpaceQuotaSnapshot(new SpaceQuotaStatus(SpaceViolationPolicy.NO_WRITES), 4096L, 512L));
+    policiesToEnforce.put(
+        TableName.valueOf("table4"),
+        new SpaceQuotaSnapshot(
+            new SpaceQuotaStatus(SpaceViolationPolicy.NO_WRITES_COMPACTIONS), 8192L, 512L));
 
     // No active enforcements
     when(manager.copyActiveEnforcements()).thenReturn(Collections.emptyMap());
@@ -87,11 +97,19 @@ public class TestSpaceQuotaViolationPolicyRefresherChore {
   @Test
   public void testOldPoliciesAreRemoved() throws IOException {
     final Map<TableName,SpaceQuotaSnapshot> policiesToEnforce = new HashMap<>();
-    policiesToEnforce.put(TableName.valueOf("table1"), new SpaceQuotaSnapshot(SpaceViolationPolicy.DISABLE, 1024L, 512L));
-    policiesToEnforce.put(TableName.valueOf("table2"), new SpaceQuotaSnapshot(SpaceViolationPolicy.NO_INSERTS, 2048L, 512L));
+    policiesToEnforce.put(
+        TableName.valueOf("table1"),
+        new SpaceQuotaSnapshot(new SpaceQuotaStatus(SpaceViolationPolicy.DISABLE), 1024L, 512L));
+    policiesToEnforce.put(
+        TableName.valueOf("table2"),
+        new SpaceQuotaSnapshot(new SpaceQuotaStatus(SpaceViolationPolicy.NO_INSERTS), 2048L, 512L));
     final Map<TableName,SpaceQuotaSnapshot> previousPolicies = new HashMap<>();
-    previousPolicies.put(TableName.valueOf("table3"), new SpaceQuotaSnapshot(SpaceViolationPolicy.NO_WRITES, 4096L, 512L));
-    previousPolicies.put(TableName.valueOf("table4"), new SpaceQuotaSnapshot(SpaceViolationPolicy.NO_WRITES, 8192L, 512L));
+    previousPolicies.put(
+        TableName.valueOf("table3"),
+        new SpaceQuotaSnapshot(new SpaceQuotaStatus(SpaceViolationPolicy.NO_WRITES), 4096L, 512L));
+    previousPolicies.put(
+        TableName.valueOf("table4"),
+        new SpaceQuotaSnapshot(new SpaceQuotaStatus(SpaceViolationPolicy.NO_WRITES), 8192L, 512L));
 
     // No active enforcements
     when(manager.getActivePoliciesAsMap()).thenReturn(previousPolicies);
@@ -112,12 +130,20 @@ public class TestSpaceQuotaViolationPolicyRefresherChore {
   @Test
   public void testNewPolicyOverridesOld() throws IOException {
     final Map<TableName,SpaceQuotaSnapshot> policiesToEnforce = new HashMap<>();
-    policiesToEnforce.put(TableName.valueOf("table1"), new SpaceQuotaSnapshot(SpaceViolationPolicy.DISABLE, 1024L, 512L));
-    policiesToEnforce.put(TableName.valueOf("table2"), new SpaceQuotaSnapshot(SpaceViolationPolicy.NO_WRITES, 2048L, 512L));
-    policiesToEnforce.put(TableName.valueOf("table3"), new SpaceQuotaSnapshot(SpaceViolationPolicy.NO_INSERTS, 4096L, 512L));
+    policiesToEnforce.put(
+        TableName.valueOf("table1"),
+        new SpaceQuotaSnapshot(new SpaceQuotaStatus(SpaceViolationPolicy.DISABLE), 1024L, 512L));
+    policiesToEnforce.put(
+        TableName.valueOf("table2"),
+        new SpaceQuotaSnapshot(new SpaceQuotaStatus(SpaceViolationPolicy.NO_WRITES), 2048L, 512L));
+    policiesToEnforce.put(
+        TableName.valueOf("table3"),
+        new SpaceQuotaSnapshot(new SpaceQuotaStatus(SpaceViolationPolicy.NO_INSERTS), 4096L, 512L));
 
     final Map<TableName,SpaceQuotaSnapshot> previousPolicies = new HashMap<>();
-    previousPolicies.put(TableName.valueOf("table1"), new SpaceQuotaSnapshot(SpaceViolationPolicy.NO_WRITES, 8192L, 512L));
+    previousPolicies.put(
+        TableName.valueOf("table1"),
+        new SpaceQuotaSnapshot(new SpaceQuotaStatus(SpaceViolationPolicy.NO_WRITES), 8192L, 512L));
 
     // No active enforcements
     when(manager.getActivePoliciesAsMap()).thenReturn(previousPolicies);
@@ -142,14 +168,14 @@ public class TestSpaceQuotaViolationPolicyRefresherChore {
     NoInsertsViolationPolicyEnforcement noInsertsPolicy =
         new NoInsertsViolationPolicyEnforcement();
     SpaceQuotaSnapshot noInsertsSnapshot = new SpaceQuotaSnapshot(
-        SpaceViolationPolicy.NO_INSERTS, 1024L, 512L);
+        new SpaceQuotaStatus(SpaceViolationPolicy.NO_INSERTS), 1024L, 512L);
     noInsertsPolicy.initialize(rss, TableName.valueOf("no_inserts"), noInsertsSnapshot);
     enforcements.put(noInsertsPolicy.getTableName(), noInsertsPolicy);
     expectedPolicies.put(noInsertsPolicy.getTableName(), noInsertsSnapshot);
 
     NoWritesViolationPolicyEnforcement noWritesPolicy = new NoWritesViolationPolicyEnforcement();
     SpaceQuotaSnapshot noWritesSnapshot = new SpaceQuotaSnapshot(
-        SpaceViolationPolicy.NO_WRITES, 2048L, 512L);
+        new SpaceQuotaStatus(SpaceViolationPolicy.NO_WRITES), 2048L, 512L);
     noWritesPolicy.initialize(rss, TableName.valueOf("no_writes"), noWritesSnapshot);
     enforcements.put(noWritesPolicy.getTableName(), noWritesPolicy);
     expectedPolicies.put(noWritesPolicy.getTableName(), noWritesSnapshot);
@@ -157,7 +183,7 @@ public class TestSpaceQuotaViolationPolicyRefresherChore {
     NoWritesCompactionsViolationPolicyEnforcement noWritesCompactionsPolicy =
         new NoWritesCompactionsViolationPolicyEnforcement();
     SpaceQuotaSnapshot noWritesCompactionsSnapshot = new SpaceQuotaSnapshot(
-        SpaceViolationPolicy.NO_WRITES_COMPACTIONS, 4096L, 512L);
+        new SpaceQuotaStatus(SpaceViolationPolicy.NO_WRITES_COMPACTIONS), 4096L, 512L);
     noWritesCompactionsPolicy.initialize(
         rss, TableName.valueOf("no_writes_compactions"), noWritesCompactionsSnapshot);
     enforcements.put(noWritesCompactionsPolicy.getTableName(), noWritesCompactionsPolicy);
@@ -167,7 +193,7 @@ public class TestSpaceQuotaViolationPolicyRefresherChore {
     DisableTableViolationPolicyEnforcement disablePolicy =
         new DisableTableViolationPolicyEnforcement();
     SpaceQuotaSnapshot disableSnapshot = new SpaceQuotaSnapshot(
-        SpaceViolationPolicy.DISABLE, 8192L, 512L);
+        new SpaceQuotaStatus(SpaceViolationPolicy.DISABLE), 8192L, 512L);
     disablePolicy.initialize(rss, TableName.valueOf("disable"), disableSnapshot);
     enforcements.put(disablePolicy.getTableName(), disablePolicy);
     expectedPolicies.put(disablePolicy.getTableName(), disableSnapshot);
