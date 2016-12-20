@@ -220,12 +220,12 @@ public class TestQuotaTableUtil {
     puts.add(QuotaTableUtil.putViolationPolicy(tn1, violation1));
     puts.add(QuotaTableUtil.putViolationPolicy(tn2, violation2));
     puts.add(QuotaTableUtil.putViolationPolicy(tn3, violation3));
-    final Map<TableName,SpaceViolation> expectedPolicies = new HashMap<>();
-    expectedPolicies.put(tn1, violation1);
-    expectedPolicies.put(tn2, violation2);
-    expectedPolicies.put(tn3, violation3);
+    final Map<TableName,SpaceQuotaSnapshot> expectedPolicies = new HashMap<>();
+    expectedPolicies.put(tn1, SpaceQuotaSnapshot.toSpaceQuotaSnapshot(violation1));
+    expectedPolicies.put(tn2, SpaceQuotaSnapshot.toSpaceQuotaSnapshot(violation2));
+    expectedPolicies.put(tn3, SpaceQuotaSnapshot.toSpaceQuotaSnapshot(violation3));
 
-    final Map<TableName,SpaceViolation> actualPolicies = new HashMap<>();
+    final Map<TableName,SpaceQuotaSnapshot> actualPolicies = new HashMap<>();
     try (Table quotaTable = connection.getTable(QuotaUtil.QUOTA_TABLE_NAME)) {
       quotaTable.put(puts);
       ResultScanner scanner = quotaTable.getScanner(QuotaTableUtil.makeQuotaViolationScan());

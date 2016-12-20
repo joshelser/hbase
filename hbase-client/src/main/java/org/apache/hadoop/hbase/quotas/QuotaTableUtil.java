@@ -230,10 +230,10 @@ public class QuotaTableUtil {
    * will throw an {@link IllegalArgumentException}.
    *
    * @param result A row from the quota table.
-   * @param violations A map of violations to add the result of this method into.
+   * @param snapshots A map of violations to add the result of this method into.
    */
   public static void extractViolationPolicy(
-      Result result, Map<TableName,SpaceViolation> violations) {
+      Result result, Map<TableName,SpaceQuotaSnapshot> snapshots) {
     byte[] row = Objects.requireNonNull(result).getRow();
     if (null == row) {
       throw new IllegalArgumentException("Provided result had a null row");
@@ -247,7 +247,7 @@ public class QuotaTableUtil {
         c.getValueArray(), c.getValueOffset(), c.getValueLength());
     try {
       SpaceViolation violation = SpaceViolation.parseFrom(buffer);
-      violations.put(targetTableName, violation);
+      snapshots.put(targetTableName, SpaceQuotaSnapshot.toSpaceQuotaSnapshot(violation));
     } catch (InvalidProtocolBufferException e) {
       throw new IllegalArgumentException(
           "Result did not contain a valid SpaceQuota protocol buffer message", e);

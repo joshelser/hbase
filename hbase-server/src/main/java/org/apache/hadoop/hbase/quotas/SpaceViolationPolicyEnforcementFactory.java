@@ -40,9 +40,9 @@ public class SpaceViolationPolicyEnforcementFactory {
   }
 
   public SpaceViolationPolicyEnforcement create(
-      RegionServerServices rss, TableName tableName, SpaceViolationPolicy policy) {
+      RegionServerServices rss, TableName tableName, SpaceQuotaSnapshot snapshot) {
     SpaceViolationPolicyEnforcement enforcement;
-    switch (policy) {
+    switch (snapshot.getPolicy()) {
       case NONE:
         enforcement = NoopViolationPolicyEnforcement.getInstance();
         break;
@@ -59,9 +59,9 @@ public class SpaceViolationPolicyEnforcementFactory {
         enforcement = new NoInsertsViolationPolicyEnforcement();
         break;
       default:
-        throw new IllegalArgumentException("Unhandled SpaceViolationPolicy: " + policy);
+        throw new IllegalArgumentException("Unhandled SpaceViolationPolicy: " + snapshot.getPolicy());
     }
-    enforcement.initialize(rss, tableName);
+    enforcement.initialize(rss, tableName, snapshot);
     return enforcement;
   }
 }

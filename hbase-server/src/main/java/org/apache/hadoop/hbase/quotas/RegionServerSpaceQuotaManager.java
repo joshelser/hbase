@@ -33,7 +33,6 @@ import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.regionserver.RegionServerServices;
-import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceViolation;
 import org.apache.hadoop.hbase.util.Bytes;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -98,14 +97,14 @@ public class RegionServerSpaceQuotaManager {
    * Converts a map of table to {@link SpaceViolationPolicyEnforcement}s into
    * {@link SpaceViolationPolicy}s.
    */
-  public Map<TableName, SpaceViolationPolicy> getActivePoliciesAsMap() {
+  public Map<TableName, SpaceQuotaSnapshot> getActivePoliciesAsMap() {
     final Map<TableName, SpaceViolationPolicyEnforcement> enforcements =
         copyActiveEnforcements();
-    final Map<TableName, SpaceViolationPolicy> policies = new HashMap<>();
+    final Map<TableName, SpaceQuotaSnapshot> policies = new HashMap<>();
     for (Entry<TableName, SpaceViolationPolicyEnforcement> entry : enforcements.entrySet()) {
-      final SpaceViolationPolicy policy = entry.getValue().getPolicy();
-      if (null != policy) {
-        policies.put(entry.getKey(), policy);
+      final SpaceQuotaSnapshot snapshot = entry.getValue().getQuotaSnapshot();
+      if (null != snapshot) {
+        policies.put(entry.getKey(), snapshot);
       }
     }
     return policies;
@@ -117,10 +116,10 @@ public class RegionServerSpaceQuotaManager {
    * @return The collection of tables which are in violation of their quota and the policy which
    *    should be enforced.
    */
-  public Map<TableName, SpaceViolation> getViolationsToEnforce() throws IOException {
+  public Map<TableName, SpaceQuotaSnapshot> getViolationsToEnforce() throws IOException {
     try (Table quotaTable = getConnection().getTable(QuotaUtil.QUOTA_TABLE_NAME);
         ResultScanner scanner = quotaTable.getScanner(QuotaTableUtil.makeQuotaViolationScan())) {
-      Map<TableName,SpaceViolation> activeViolations = new HashMap<>();
+      Map<TableName,SpaceQuotaSnapshot> activeViolations = new HashMap<>();
       for (Result result : scanner) {
         try {
           extractViolationPolicy(result, activeViolations);
@@ -137,15 +136,15 @@ public class RegionServerSpaceQuotaManager {
   /**
    * Enforces the given violationPolicy on the given table in this RegionServer.
    */
-  public void enforceViolationPolicy(TableName tableName, SpaceViolationPolicy violationPolicy) {
+  public void enforceViolationPolicy(TableName tableName, SpaceQuotaSnapshot snapshot) {
     if (LOG.isTraceEnabled()) {
       LOG.trace(
           "Enabling violation policy enforcement on " + tableName
-          + " with policy " + violationPolicy);
+          + " with policy " + snapshot.getPolicy());
     }
     // Construct this outside of the lock
     final SpaceViolationPolicyEnforcement enforcement = getFactory().create(
-        getRegionServerServices(), tableName, violationPolicy);
+        getRegionServerServices(), tableName, snapshot);
     // "Enables" the policy
     // TODO Should this synchronize on the actual table name instead of the map? That would allow
     // policy enable/disable on different tables to happen concurrently. As written now, only one
@@ -217,7 +216,7 @@ public class RegionServerSpaceQuotaManager {
   /**
    * Wrapper around {@link QuotaTableUtil#extractViolationPolicy(Result, Map)} for testing.
    */
-  void extractViolationPolicy(Result result, Map<TableName,SpaceViolation> activeViolations) {
+  void extractViolationPolicy(Result result, Map<TableName,SpaceQuotaSnapshot> activeViolations) {
     QuotaTableUtil.extractViolationPolicy(result, activeViolations);
   }
 

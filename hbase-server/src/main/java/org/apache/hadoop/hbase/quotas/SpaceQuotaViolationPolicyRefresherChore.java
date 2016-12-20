@@ -27,8 +27,6 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.ScheduledChore;
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.shaded.protobuf.ProtobufUtil;
-import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceViolation;
 
 /**
  * A {@link ScheduledChore} which periodically updates a local copy of Tables which have
@@ -71,26 +69,25 @@ public class SpaceQuotaViolationPolicyRefresherChore extends ScheduledChore {
         LOG.trace("Reading current quota violations from hbase:quota.");
       }
       // Tables with a policy currently enforced
-      final Map<TableName, SpaceViolationPolicy> activeViolationPolicies =
+      final Map<TableName, SpaceQuotaSnapshot> activeViolationPolicies =
           manager.getActivePoliciesAsMap();
       // Tables with policies that should be enforced
-      final Map<TableName, SpaceViolation> violations =
+      final Map<TableName, SpaceQuotaSnapshot> violations =
           manager.getViolationsToEnforce();
       if (LOG.isTraceEnabled()) {
         LOG.trace(activeViolationPolicies.size() + " policies are currently active, "
             + "this server should have " + violations.size() + " active");
       }
       // Ensure each policy which should be enacted is enacted.
-      for (Entry<TableName, SpaceViolation> entry : violations.entrySet()) {
+      for (Entry<TableName, SpaceQuotaSnapshot> entry : violations.entrySet()) {
         final TableName tableName = entry.getKey();
-        final SpaceViolation violationFromTable = entry.getValue();
-        final SpaceViolationPolicy policyToEnforce = ProtobufUtil.toViolationPolicy(violationFromTable.getPolicy());
-        final SpaceViolationPolicy currentPolicy = activeViolationPolicies.get(tableName);
-        if (currentPolicy != policyToEnforce) {
+        final SpaceQuotaSnapshot snapshot = entry.getValue();
+        final SpaceQuotaSnapshot currentPolicy = activeViolationPolicies.get(tableName);
+        if (!snapshot.equals(currentPolicy)) {
           if (LOG.isTraceEnabled()) {
-            LOG.trace("Enabling " + policyToEnforce + " on " + tableName);
+            LOG.trace("Enabling " + snapshot + " on " + tableName);
           }
-          manager.enforceViolationPolicy(tableName, policyToEnforce);
+          manager.enforceViolationPolicy(tableName, snapshot);
         }
       }
       // Remove policies which should no longer be enforced

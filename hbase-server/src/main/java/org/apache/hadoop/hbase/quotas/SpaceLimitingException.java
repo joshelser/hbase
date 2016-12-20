@@ -55,6 +55,11 @@ public class SpaceLimitingException extends QuotaExceededException {
     this.policy = policy;
   }
 
+  public SpaceLimitingException(SpaceViolationPolicy policy, String msg, Throwable e) {
+    super(msg, e);
+    this.policy = policy;
+  }
+
   /**
    * Returns the violation policy in effect.
    *

@@ -17,7 +17,9 @@
 package org.apache.hadoop.hbase.quotas;
 
 import java.io.IOException;
+import java.util.List;
 
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.quotas.SpaceViolationPolicy;
@@ -33,7 +35,7 @@ public interface SpaceViolationPolicyEnforcement {
   /**
    * Initializes this policy instance.
    */
-  void initialize(RegionServerServices rss, TableName tableName);
+  void initialize(RegionServerServices rss, TableName tableName, SpaceQuotaSnapshot snapshot);
 
   /**
    * Enables this policy. Not all policies have enable actions.
@@ -63,4 +65,19 @@ public interface SpaceViolationPolicyEnforcement {
    * Returns whether or not compactions on this table should be disabled for this policy.
    */
   boolean areCompactionsDisabled();
+
+  /**
+   * Returns the {@link SpaceQuotaSnapshot} <code>this</code> was initialized with.
+   */
+  SpaceQuotaSnapshot getQuotaSnapshot();
+
+  /**
+   * Checks the file at the given path against <code>this</code> policy and the current
+   * {@link SpaceQuotaSnapshot}. If the file would violate the policy, a
+   * {@link SpaceLimitingException} will be thrown.
+   *
+   * @param paths The paths in HDFS to files to be bulk loaded.
+   */
+  void checkBulkLoad(FileSystem fs, List<String> paths) throws SpaceLimitingException;
+
 }

@@ -16,9 +16,13 @@
  */
 package org.apache.hadoop.hbase.quotas.policies;
 
+import java.util.List;
+
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.quotas.SpaceLimitingException;
+import org.apache.hadoop.hbase.quotas.SpaceQuotaSnapshot;
 import org.apache.hadoop.hbase.quotas.SpaceViolationPolicy;
 import org.apache.hadoop.hbase.quotas.SpaceViolationPolicyEnforcement;
 import org.apache.hadoop.hbase.regionserver.RegionServerServices;
@@ -38,7 +42,8 @@ public class NoopViolationPolicyEnforcement implements SpaceViolationPolicyEnfor
   }
 
   @Override
-  public void initialize(RegionServerServices rss, TableName tableName) {}
+  public void initialize(
+      RegionServerServices rss, TableName tableName, SpaceQuotaSnapshot snapshot) {}
 
   @Override
   public void enable() {}
@@ -55,7 +60,15 @@ public class NoopViolationPolicyEnforcement implements SpaceViolationPolicyEnfor
   }
 
   @Override
+  public SpaceQuotaSnapshot getQuotaSnapshot() {
+    return null;
+  }
+
+  @Override
   public boolean areCompactionsDisabled() {
     return false;
   }
+
+  @Override
+  public void checkBulkLoad(FileSystem fs, List<String> paths) throws SpaceLimitingException {}
 }

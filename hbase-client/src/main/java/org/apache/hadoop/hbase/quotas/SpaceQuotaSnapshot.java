@@ -19,13 +19,14 @@ package org.apache.hadoop.hbase.quotas;
 import java.util.Objects;
 
 import org.apache.commons.lang.builder.HashCodeBuilder;
+import org.apache.hadoop.hbase.classification.InterfaceAudience;
 import org.apache.hadoop.hbase.shaded.protobuf.ProtobufUtil;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos;
 
 /**
  * A point-in-time view of a space quota on a table.
  */
-
+@InterfaceAudience.Private
 public class SpaceQuotaSnapshot {
   private final SpaceViolationPolicy policy;
   private final long usage;
@@ -79,8 +80,8 @@ public class SpaceQuotaSnapshot {
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder(32);
-    sb.append("ViolationSnapshot: policy=").append(policy).append(", use=");
-    sb.append(usage).append("bytes/").append(limit).append("bytes");
+    sb.append("SpaceQuotaSnapshot[policy=").append(policy).append(", use=");
+    sb.append(usage).append("bytes/").append(limit).append("bytes]");
     return sb.toString();
   }
 
