@@ -108,6 +108,8 @@ import org.apache.hadoop.hbase.shaded.protobuf.generated.ReplicationProtos.Remov
 import org.apache.hadoop.hbase.shaded.protobuf.generated.ReplicationProtos.RemoveReplicationPeerResponse;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.ReplicationProtos.UpdateReplicationPeerConfigRequest;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.ReplicationProtos.UpdateReplicationPeerConfigResponse;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaRegionSizesRequest;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaRegionSizesResponse;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.EnvironmentEdgeManager;
 import org.apache.hadoop.hbase.util.ExceptionUtil;
@@ -1718,6 +1720,13 @@ class ConnectionImplementation implements ClusterConnection, Closeable {
       public ListReplicationPeersResponse listReplicationPeers(RpcController controller,
           ListReplicationPeersRequest request) throws ServiceException {
         return stub.listReplicationPeers(controller, request);
+      }
+
+      @Override
+      public GetSpaceQuotaRegionSizesResponse getSpaceQuotaRegionSizes(
+          RpcController controller, GetSpaceQuotaRegionSizesRequest request)
+          throws ServiceException {
+        return stub.getSpaceQuotaRegionSizes(controller, request);
       }
     };
   }
