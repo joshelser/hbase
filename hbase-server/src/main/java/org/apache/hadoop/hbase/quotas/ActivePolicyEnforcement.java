@@ -16,6 +16,7 @@
  */
 package org.apache.hadoop.hbase.quotas;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 
@@ -25,6 +26,8 @@ import org.apache.hadoop.hbase.classification.InterfaceStability;
 import org.apache.hadoop.hbase.quotas.SpaceQuotaSnapshot.SpaceQuotaStatus;
 import org.apache.hadoop.hbase.regionserver.Region;
 import org.apache.hadoop.hbase.regionserver.RegionServerServices;
+
+import com.google.common.annotations.VisibleForTesting;
 
 /**
  * A class to ease dealing with tables that have and do not have violation policies
@@ -78,6 +81,13 @@ public class ActivePolicyEnforcement {
       }
     }
     return policy;
+  }
+
+  /**
+   * Returns an unmodifiable version of the active {@link SpaceViolationPolicyEnforcement}s.
+   */
+  public Map<TableName,SpaceViolationPolicyEnforcement> getPolicies() {
+    return Collections.unmodifiableMap(activePolicies);
   }
 
   @Override

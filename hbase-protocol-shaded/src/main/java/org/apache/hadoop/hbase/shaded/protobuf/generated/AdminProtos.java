@@ -26148,6 +26148,30 @@ public final class AdminProtos {
           org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.GetRegionLoadRequest request,
           org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcCallback<org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.GetRegionLoadResponse> done);
 
+      /**
+       * <pre>
+       ** Fetches the RegionServer's view of space quotas 
+       * </pre>
+       *
+       * <code>rpc GetSpaceQuotaSnapshots(.hbase.pb.GetSpaceQuotaSnapshotsRequest) returns (.hbase.pb.GetSpaceQuotaSnapshotsResponse);</code>
+       */
+      public abstract void getSpaceQuotaSnapshots(
+          org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcController controller,
+          org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaSnapshotsRequest request,
+          org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcCallback<org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaSnapshotsResponse> done);
+
+      /**
+       * <pre>
+       ** Fetches the RegionServer's space quota active enforcements 
+       * </pre>
+       *
+       * <code>rpc GetSpaceQuotaEnforcements(.hbase.pb.GetSpaceQuotaEnforcementsRequest) returns (.hbase.pb.GetSpaceQuotaEnforcementsResponse);</code>
+       */
+      public abstract void getSpaceQuotaEnforcements(
+          org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcController controller,
+          org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaEnforcementsRequest request,
+          org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcCallback<org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaEnforcementsResponse> done);
+
     }
 
     public static org.apache.hadoop.hbase.shaded.com.google.protobuf.Service newReflectiveService(
@@ -26305,6 +26329,22 @@ public final class AdminProtos {
           impl.getRegionLoad(controller, request, done);
         }
 
+        @java.lang.Override
+        public  void getSpaceQuotaSnapshots(
+            org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcController controller,
+            org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaSnapshotsRequest request,
+            org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcCallback<org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaSnapshotsResponse> done) {
+          impl.getSpaceQuotaSnapshots(controller, request, done);
+        }
+
+        @java.lang.Override
+        public  void getSpaceQuotaEnforcements(
+            org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcController controller,
+            org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaEnforcementsRequest request,
+            org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcCallback<org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaEnforcementsResponse> done) {
+          impl.getSpaceQuotaEnforcements(controller, request, done);
+        }
+
       };
     }
 
@@ -26365,6 +26405,10 @@ public final class AdminProtos {
               return impl.updateConfiguration(controller, (org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.UpdateConfigurationRequest)request);
             case 18:
               return impl.getRegionLoad(controller, (org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.GetRegionLoadRequest)request);
+            case 19:
+              return impl.getSpaceQuotaSnapshots(controller, (org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaSnapshotsRequest)request);
+            case 20:
+              return impl.getSpaceQuotaEnforcements(controller, (org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaEnforcementsRequest)request);
             default:
               throw new java.lang.AssertionError("Can't get here.");
           }
@@ -26417,6 +26461,10 @@ public final class AdminProtos {
               return org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.UpdateConfigurationRequest.getDefaultInstance();
             case 18:
               return org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.GetRegionLoadRequest.getDefaultInstance();
+            case 19:
+              return org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaSnapshotsRequest.getDefaultInstance();
+            case 20:
+              return org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaEnforcementsRequest.getDefaultInstance();
             default:
               throw new java.lang.AssertionError("Can't get here.");
           }
@@ -26469,6 +26517,10 @@ public final class AdminProtos {
               return org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.UpdateConfigurationResponse.getDefaultInstance();
             case 18:
               return org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.GetRegionLoadResponse.getDefaultInstance();
+            case 19:
+              return org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaSnapshotsResponse.getDefaultInstance();
+            case 20:
+              return org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaEnforcementsResponse.getDefaultInstance();
             default:
               throw new java.lang.AssertionError("Can't get here.");
           }
@@ -26629,6 +26681,30 @@ public final class AdminProtos {
         org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.GetRegionLoadRequest request,
         org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcCallback<org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.GetRegionLoadResponse> done);
 
+    /**
+     * <pre>
+     ** Fetches the RegionServer's view of space quotas 
+     * </pre>
+     *
+     * <code>rpc GetSpaceQuotaSnapshots(.hbase.pb.GetSpaceQuotaSnapshotsRequest) returns (.hbase.pb.GetSpaceQuotaSnapshotsResponse);</code>
+     */
+    public abstract void getSpaceQuotaSnapshots(
+        org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcController controller,
+        org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaSnapshotsRequest request,
+        org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcCallback<org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaSnapshotsResponse> done);
+
+    /**
+     * <pre>
+     ** Fetches the RegionServer's space quota active enforcements 
+     * </pre>
+     *
+     * <code>rpc GetSpaceQuotaEnforcements(.hbase.pb.GetSpaceQuotaEnforcementsRequest) returns (.hbase.pb.GetSpaceQuotaEnforcementsResponse);</code>
+     */
+    public abstract void getSpaceQuotaEnforcements(
+        org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcController controller,
+        org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaEnforcementsRequest request,
+        org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcCallback<org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaEnforcementsResponse> done);
+
     public static final
         org.apache.hadoop.hbase.shaded.com.google.protobuf.Descriptors.ServiceDescriptor
         getDescriptor() {
@@ -26746,6 +26822,16 @@ public final class AdminProtos {
             org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcUtil.<org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.GetRegionLoadResponse>specializeCallback(
               done));
           return;
+        case 19:
+          this.getSpaceQuotaSnapshots(controller, (org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaSnapshotsRequest)request,
+            org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcUtil.<org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaSnapshotsResponse>specializeCallback(
+              done));
+          return;
+        case 20:
+          this.getSpaceQuotaEnforcements(controller, (org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaEnforcementsRequest)request,
+            org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcUtil.<org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaEnforcementsResponse>specializeCallback(
+              done));
+          return;
         default:
           throw new java.lang.AssertionError("Can't get here.");
       }
@@ -26798,6 +26884,10 @@ public final class AdminProtos {
           return org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.UpdateConfigurationRequest.getDefaultInstance();
         case 18:
           return org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.GetRegionLoadRequest.getDefaultInstance();
+        case 19:
+          return org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaSnapshotsRequest.getDefaultInstance();
+        case 20:
+          return org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaEnforcementsRequest.getDefaultInstance();
         default:
           throw new java.lang.AssertionError("Can't get here.");
       }
@@ -26850,6 +26940,10 @@ public final class AdminProtos {
           return org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.UpdateConfigurationResponse.getDefaultInstance();
         case 18:
           return org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.GetRegionLoadResponse.getDefaultInstance();
+        case 19:
+          return org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaSnapshotsResponse.getDefaultInstance();
+        case 20:
+          return org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaEnforcementsResponse.getDefaultInstance();
         default:
           throw new java.lang.AssertionError("Can't get here.");
       }
@@ -27155,6 +27249,36 @@ public final class AdminProtos {
             org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.GetRegionLoadResponse.class,
             org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.GetRegionLoadResponse.getDefaultInstance()));
       }
+
+      public  void getSpaceQuotaSnapshots(
+          org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcController controller,
+          org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaSnapshotsRequest request,
+          org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcCallback<org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaSnapshotsResponse> done) {
+        channel.callMethod(
+          getDescriptor().getMethods().get(19),
+          controller,
+          request,
+          org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaSnapshotsResponse.getDefaultInstance(),
+          org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcUtil.generalizeCallback(
+            done,
+            org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaSnapshotsResponse.class,
+            org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaSnapshotsResponse.getDefaultInstance()));
+      }
+
+      public  void getSpaceQuotaEnforcements(
+          org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcController controller,
+          org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaEnforcementsRequest request,
+          org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcCallback<org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaEnforcementsResponse> done) {
+        channel.callMethod(
+          getDescriptor().getMethods().get(20),
+          controller,
+          request,
+          org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaEnforcementsResponse.getDefaultInstance(),
+          org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcUtil.generalizeCallback(
+            done,
+            org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaEnforcementsResponse.class,
+            org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaEnforcementsResponse.getDefaultInstance()));
+      }
     }
 
     public static BlockingInterface newBlockingStub(
@@ -27256,6 +27380,16 @@ public final class AdminProtos {
       public org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.GetRegionLoadResponse getRegionLoad(
           org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcController controller,
           org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.GetRegionLoadRequest request)
+          throws org.apache.hadoop.hbase.shaded.com.google.protobuf.ServiceException;
+
+      public org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaSnapshotsResponse getSpaceQuotaSnapshots(
+          org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcController controller,
+          org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaSnapshotsRequest request)
+          throws org.apache.hadoop.hbase.shaded.com.google.protobuf.ServiceException;
+
+      public org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaEnforcementsResponse getSpaceQuotaEnforcements(
+          org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcController controller,
+          org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaEnforcementsRequest request)
           throws org.apache.hadoop.hbase.shaded.com.google.protobuf.ServiceException;
     }
 
@@ -27493,6 +27627,30 @@ public final class AdminProtos {
           org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.GetRegionLoadResponse.getDefaultInstance());
       }
 
+
+      public org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaSnapshotsResponse getSpaceQuotaSnapshots(
+          org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcController controller,
+          org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaSnapshotsRequest request)
+          throws org.apache.hadoop.hbase.shaded.com.google.protobuf.ServiceException {
+        return (org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaSnapshotsResponse) channel.callBlockingMethod(
+          getDescriptor().getMethods().get(19),
+          controller,
+          request,
+          org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaSnapshotsResponse.getDefaultInstance());
+      }
+
+
+      public org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaEnforcementsResponse getSpaceQuotaEnforcements(
+          org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcController controller,
+          org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaEnforcementsRequest request)
+          throws org.apache.hadoop.hbase.shaded.com.google.protobuf.ServiceException {
+        return (org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaEnforcementsResponse) channel.callBlockingMethod(
+          getDescriptor().getMethods().get(20),
+          controller,
+          request,
+          org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaEnforcementsResponse.getDefaultInstance());
+      }
+
     }
 
     // @@protoc_insertion_point(class_scope:hbase.pb.AdminService)
@@ -27708,126 +27866,132 @@ public final class AdminProtos {
   static {
     java.lang.String[] descriptorData = {
       "\n\013Admin.proto\022\010hbase.pb\032\023ClusterStatus.p" +
-      "roto\032\013HBase.proto\032\tWAL.proto\"[\n\024GetRegio" +
-      "nInfoRequest\022)\n\006region\030\001 \002(\0132\031.hbase.pb." +
-      "RegionSpecifier\022\030\n\020compaction_state\030\002 \001(" +
-      "\010\"\353\001\n\025GetRegionInfoResponse\022)\n\013region_in" +
-      "fo\030\001 \002(\0132\024.hbase.pb.RegionInfo\022I\n\020compac" +
-      "tion_state\030\002 \001(\0162/.hbase.pb.GetRegionInf" +
-      "oResponse.CompactionState\022\024\n\014isRecoverin" +
-      "g\030\003 \001(\010\"F\n\017CompactionState\022\010\n\004NONE\020\000\022\t\n\005" +
-      "MINOR\020\001\022\t\n\005MAJOR\020\002\022\023\n\017MAJOR_AND_MINOR\020\003\"",
-      "P\n\023GetStoreFileRequest\022)\n\006region\030\001 \002(\0132\031" +
-      ".hbase.pb.RegionSpecifier\022\016\n\006family\030\002 \003(" +
-      "\014\"*\n\024GetStoreFileResponse\022\022\n\nstore_file\030" +
-      "\001 \003(\t\"\030\n\026GetOnlineRegionRequest\"D\n\027GetOn" +
-      "lineRegionResponse\022)\n\013region_info\030\001 \003(\0132" +
-      "\024.hbase.pb.RegionInfo\"\263\002\n\021OpenRegionRequ" +
-      "est\022=\n\topen_info\030\001 \003(\0132*.hbase.pb.OpenRe" +
-      "gionRequest.RegionOpenInfo\022\027\n\017serverStar" +
-      "tCode\030\002 \001(\004\022\032\n\022master_system_time\030\005 \001(\004\032" +
-      "\251\001\n\016RegionOpenInfo\022$\n\006region\030\001 \002(\0132\024.hba",
-      "se.pb.RegionInfo\022\037\n\027version_of_offline_n" +
-      "ode\030\002 \001(\r\022+\n\rfavored_nodes\030\003 \003(\0132\024.hbase" +
-      ".pb.ServerName\022#\n\033openForDistributedLogR" +
-      "eplay\030\004 \001(\010\"\246\001\n\022OpenRegionResponse\022F\n\rop" +
-      "ening_state\030\001 \003(\0162/.hbase.pb.OpenRegionR" +
-      "esponse.RegionOpeningState\"H\n\022RegionOpen" +
-      "ingState\022\n\n\006OPENED\020\000\022\022\n\016ALREADY_OPENED\020\001" +
-      "\022\022\n\016FAILED_OPENING\020\002\"?\n\023WarmupRegionRequ" +
-      "est\022(\n\nregionInfo\030\001 \002(\0132\024.hbase.pb.Regio" +
-      "nInfo\"\026\n\024WarmupRegionResponse\"\313\001\n\022CloseR",
-      "egionRequest\022)\n\006region\030\001 \002(\0132\031.hbase.pb." +
-      "RegionSpecifier\022\037\n\027version_of_closing_no" +
-      "de\030\002 \001(\r\022\036\n\020transition_in_ZK\030\003 \001(\010:\004true" +
-      "\0220\n\022destination_server\030\004 \001(\0132\024.hbase.pb." +
-      "ServerName\022\027\n\017serverStartCode\030\005 \001(\004\"%\n\023C" +
-      "loseRegionResponse\022\016\n\006closed\030\001 \002(\010\"G\n\032Cl" +
-      "oseRegionForSplitRequest\022)\n\006region\030\001 \002(\013" +
-      "2\031.hbase.pb.RegionSpecifier\"-\n\033CloseRegi" +
-      "onForSplitResponse\022\016\n\006closed\030\001 \002(\010\"y\n\022Fl" +
-      "ushRegionRequest\022)\n\006region\030\001 \002(\0132\031.hbase",
-      ".pb.RegionSpecifier\022\030\n\020if_older_than_ts\030" +
-      "\002 \001(\004\022\036\n\026write_flush_wal_marker\030\003 \001(\010\"_\n" +
-      "\023FlushRegionResponse\022\027\n\017last_flush_time\030" +
-      "\001 \002(\004\022\017\n\007flushed\030\002 \001(\010\022\036\n\026wrote_flush_wa" +
-      "l_marker\030\003 \001(\010\"T\n\022SplitRegionRequest\022)\n\006" +
-      "region\030\001 \002(\0132\031.hbase.pb.RegionSpecifier\022" +
-      "\023\n\013split_point\030\002 \001(\014\"\025\n\023SplitRegionRespo" +
-      "nse\"`\n\024CompactRegionRequest\022)\n\006region\030\001 " +
-      "\002(\0132\031.hbase.pb.RegionSpecifier\022\r\n\005major\030" +
-      "\002 \001(\010\022\016\n\006family\030\003 \001(\014\"\027\n\025CompactRegionRe",
-      "sponse\"\315\001\n\031UpdateFavoredNodesRequest\022I\n\013" +
-      "update_info\030\001 \003(\01324.hbase.pb.UpdateFavor" +
-      "edNodesRequest.RegionUpdateInfo\032e\n\020Regio" +
-      "nUpdateInfo\022$\n\006region\030\001 \002(\0132\024.hbase.pb.R" +
-      "egionInfo\022+\n\rfavored_nodes\030\002 \003(\0132\024.hbase" +
-      ".pb.ServerName\".\n\032UpdateFavoredNodesResp" +
-      "onse\022\020\n\010response\030\001 \001(\r\"\244\001\n\023MergeRegionsR" +
-      "equest\022+\n\010region_a\030\001 \002(\0132\031.hbase.pb.Regi" +
-      "onSpecifier\022+\n\010region_b\030\002 \002(\0132\031.hbase.pb" +
-      ".RegionSpecifier\022\027\n\010forcible\030\003 \001(\010:\005fals",
-      "e\022\032\n\022master_system_time\030\004 \001(\004\"\026\n\024MergeRe" +
-      "gionsResponse\"a\n\010WALEntry\022\035\n\003key\030\001 \002(\0132\020" +
-      ".hbase.pb.WALKey\022\027\n\017key_value_bytes\030\002 \003(" +
-      "\014\022\035\n\025associated_cell_count\030\003 \001(\005\"\242\001\n\030Rep" +
-      "licateWALEntryRequest\022!\n\005entry\030\001 \003(\0132\022.h" +
-      "base.pb.WALEntry\022\034\n\024replicationClusterId" +
-      "\030\002 \001(\t\022\"\n\032sourceBaseNamespaceDirPath\030\003 \001" +
-      "(\t\022!\n\031sourceHFileArchiveDirPath\030\004 \001(\t\"\033\n" +
-      "\031ReplicateWALEntryResponse\"\026\n\024RollWALWri" +
-      "terRequest\"0\n\025RollWALWriterResponse\022\027\n\017r",
-      "egion_to_flush\030\001 \003(\014\"#\n\021StopServerReques" +
-      "t\022\016\n\006reason\030\001 \002(\t\"\024\n\022StopServerResponse\"" +
-      "\026\n\024GetServerInfoRequest\"K\n\nServerInfo\022)\n" +
-      "\013server_name\030\001 \002(\0132\024.hbase.pb.ServerName" +
-      "\022\022\n\nwebui_port\030\002 \001(\r\"B\n\025GetServerInfoRes" +
-      "ponse\022)\n\013server_info\030\001 \002(\0132\024.hbase.pb.Se" +
-      "rverInfo\"\034\n\032UpdateConfigurationRequest\"\035" +
-      "\n\033UpdateConfigurationResponse\"?\n\024GetRegi" +
-      "onLoadRequest\022\'\n\ntable_name\030\001 \001(\0132\023.hbas" +
-      "e.pb.TableName\"C\n\025GetRegionLoadResponse\022",
-      "*\n\014region_loads\030\001 \003(\0132\024.hbase.pb.RegionL" +
-      "oad2\275\014\n\014AdminService\022P\n\rGetRegionInfo\022\036." +
-      "hbase.pb.GetRegionInfoRequest\032\037.hbase.pb" +
-      ".GetRegionInfoResponse\022M\n\014GetStoreFile\022\035" +
-      ".hbase.pb.GetStoreFileRequest\032\036.hbase.pb" +
-      ".GetStoreFileResponse\022V\n\017GetOnlineRegion" +
-      "\022 .hbase.pb.GetOnlineRegionRequest\032!.hba" +
-      "se.pb.GetOnlineRegionResponse\022G\n\nOpenReg" +
-      "ion\022\033.hbase.pb.OpenRegionRequest\032\034.hbase" +
-      ".pb.OpenRegionResponse\022M\n\014WarmupRegion\022\035",
-      ".hbase.pb.WarmupRegionRequest\032\036.hbase.pb" +
-      ".WarmupRegionResponse\022J\n\013CloseRegion\022\034.h" +
-      "base.pb.CloseRegionRequest\032\035.hbase.pb.Cl" +
-      "oseRegionResponse\022b\n\023CloseRegionForSplit" +
-      "\022$.hbase.pb.CloseRegionForSplitRequest\032%" +
-      ".hbase.pb.CloseRegionForSplitResponse\022J\n" +
-      "\013FlushRegion\022\034.hbase.pb.FlushRegionReque" +
-      "st\032\035.hbase.pb.FlushRegionResponse\022J\n\013Spl" +
-      "itRegion\022\034.hbase.pb.SplitRegionRequest\032\035" +
-      ".hbase.pb.SplitRegionResponse\022P\n\rCompact",
-      "Region\022\036.hbase.pb.CompactRegionRequest\032\037" +
-      ".hbase.pb.CompactRegionResponse\022M\n\014Merge" +
-      "Regions\022\035.hbase.pb.MergeRegionsRequest\032\036" +
-      ".hbase.pb.MergeRegionsResponse\022\\\n\021Replic" +
-      "ateWALEntry\022\".hbase.pb.ReplicateWALEntry" +
-      "Request\032#.hbase.pb.ReplicateWALEntryResp" +
-      "onse\022Q\n\006Replay\022\".hbase.pb.ReplicateWALEn" +
-      "tryRequest\032#.hbase.pb.ReplicateWALEntryR" +
-      "esponse\022P\n\rRollWALWriter\022\036.hbase.pb.Roll" +
-      "WALWriterRequest\032\037.hbase.pb.RollWALWrite",
-      "rResponse\022P\n\rGetServerInfo\022\036.hbase.pb.Ge" +
-      "tServerInfoRequest\032\037.hbase.pb.GetServerI" +
-      "nfoResponse\022G\n\nStopServer\022\033.hbase.pb.Sto" +
-      "pServerRequest\032\034.hbase.pb.StopServerResp" +
-      "onse\022_\n\022UpdateFavoredNodes\022#.hbase.pb.Up" +
-      "dateFavoredNodesRequest\032$.hbase.pb.Updat" +
-      "eFavoredNodesResponse\022b\n\023UpdateConfigura" +
-      "tion\022$.hbase.pb.UpdateConfigurationReque" +
-      "st\032%.hbase.pb.UpdateConfigurationRespons" +
-      "e\022P\n\rGetRegionLoad\022\036.hbase.pb.GetRegionL",
-      "oadRequest\032\037.hbase.pb.GetRegionLoadRespo" +
+      "roto\032\013HBase.proto\032\tWAL.proto\032\013Quota.prot" +
+      "o\"[\n\024GetRegionInfoRequest\022)\n\006region\030\001 \002(" +
+      "\0132\031.hbase.pb.RegionSpecifier\022\030\n\020compacti" +
+      "on_state\030\002 \001(\010\"\353\001\n\025GetRegionInfoResponse" +
+      "\022)\n\013region_info\030\001 \002(\0132\024.hbase.pb.RegionI" +
+      "nfo\022I\n\020compaction_state\030\002 \001(\0162/.hbase.pb" +
+      ".GetRegionInfoResponse.CompactionState\022\024" +
+      "\n\014isRecovering\030\003 \001(\010\"F\n\017CompactionState\022" +
+      "\010\n\004NONE\020\000\022\t\n\005MINOR\020\001\022\t\n\005MAJOR\020\002\022\023\n\017MAJOR",
+      "_AND_MINOR\020\003\"P\n\023GetStoreFileRequest\022)\n\006r" +
+      "egion\030\001 \002(\0132\031.hbase.pb.RegionSpecifier\022\016" +
+      "\n\006family\030\002 \003(\014\"*\n\024GetStoreFileResponse\022\022" +
+      "\n\nstore_file\030\001 \003(\t\"\030\n\026GetOnlineRegionReq" +
+      "uest\"D\n\027GetOnlineRegionResponse\022)\n\013regio" +
+      "n_info\030\001 \003(\0132\024.hbase.pb.RegionInfo\"\263\002\n\021O" +
+      "penRegionRequest\022=\n\topen_info\030\001 \003(\0132*.hb" +
+      "ase.pb.OpenRegionRequest.RegionOpenInfo\022" +
+      "\027\n\017serverStartCode\030\002 \001(\004\022\032\n\022master_syste" +
+      "m_time\030\005 \001(\004\032\251\001\n\016RegionOpenInfo\022$\n\006regio",
+      "n\030\001 \002(\0132\024.hbase.pb.RegionInfo\022\037\n\027version" +
+      "_of_offline_node\030\002 \001(\r\022+\n\rfavored_nodes\030" +
+      "\003 \003(\0132\024.hbase.pb.ServerName\022#\n\033openForDi" +
+      "stributedLogReplay\030\004 \001(\010\"\246\001\n\022OpenRegionR" +
+      "esponse\022F\n\ropening_state\030\001 \003(\0162/.hbase.p" +
+      "b.OpenRegionResponse.RegionOpeningState\"" +
+      "H\n\022RegionOpeningState\022\n\n\006OPENED\020\000\022\022\n\016ALR" +
+      "EADY_OPENED\020\001\022\022\n\016FAILED_OPENING\020\002\"?\n\023War" +
+      "mupRegionRequest\022(\n\nregionInfo\030\001 \002(\0132\024.h" +
+      "base.pb.RegionInfo\"\026\n\024WarmupRegionRespon",
+      "se\"\313\001\n\022CloseRegionRequest\022)\n\006region\030\001 \002(" +
+      "\0132\031.hbase.pb.RegionSpecifier\022\037\n\027version_" +
+      "of_closing_node\030\002 \001(\r\022\036\n\020transition_in_Z" +
+      "K\030\003 \001(\010:\004true\0220\n\022destination_server\030\004 \001(" +
+      "\0132\024.hbase.pb.ServerName\022\027\n\017serverStartCo" +
+      "de\030\005 \001(\004\"%\n\023CloseRegionResponse\022\016\n\006close" +
+      "d\030\001 \002(\010\"G\n\032CloseRegionForSplitRequest\022)\n" +
+      "\006region\030\001 \002(\0132\031.hbase.pb.RegionSpecifier" +
+      "\"-\n\033CloseRegionForSplitResponse\022\016\n\006close" +
+      "d\030\001 \002(\010\"y\n\022FlushRegionRequest\022)\n\006region\030",
+      "\001 \002(\0132\031.hbase.pb.RegionSpecifier\022\030\n\020if_o" +
+      "lder_than_ts\030\002 \001(\004\022\036\n\026write_flush_wal_ma" +
+      "rker\030\003 \001(\010\"_\n\023FlushRegionResponse\022\027\n\017las" +
+      "t_flush_time\030\001 \002(\004\022\017\n\007flushed\030\002 \001(\010\022\036\n\026w" +
+      "rote_flush_wal_marker\030\003 \001(\010\"T\n\022SplitRegi" +
+      "onRequest\022)\n\006region\030\001 \002(\0132\031.hbase.pb.Reg" +
+      "ionSpecifier\022\023\n\013split_point\030\002 \001(\014\"\025\n\023Spl" +
+      "itRegionResponse\"`\n\024CompactRegionRequest" +
+      "\022)\n\006region\030\001 \002(\0132\031.hbase.pb.RegionSpecif" +
+      "ier\022\r\n\005major\030\002 \001(\010\022\016\n\006family\030\003 \001(\014\"\027\n\025Co",
+      "mpactRegionResponse\"\315\001\n\031UpdateFavoredNod" +
+      "esRequest\022I\n\013update_info\030\001 \003(\01324.hbase.p" +
+      "b.UpdateFavoredNodesRequest.RegionUpdate" +
+      "Info\032e\n\020RegionUpdateInfo\022$\n\006region\030\001 \002(\013" +
+      "2\024.hbase.pb.RegionInfo\022+\n\rfavored_nodes\030" +
+      "\002 \003(\0132\024.hbase.pb.ServerName\".\n\032UpdateFav" +
+      "oredNodesResponse\022\020\n\010response\030\001 \001(\r\"\244\001\n\023" +
+      "MergeRegionsRequest\022+\n\010region_a\030\001 \002(\0132\031." +
+      "hbase.pb.RegionSpecifier\022+\n\010region_b\030\002 \002" +
+      "(\0132\031.hbase.pb.RegionSpecifier\022\027\n\010forcibl",
+      "e\030\003 \001(\010:\005false\022\032\n\022master_system_time\030\004 \001" +
+      "(\004\"\026\n\024MergeRegionsResponse\"a\n\010WALEntry\022\035" +
+      "\n\003key\030\001 \002(\0132\020.hbase.pb.WALKey\022\027\n\017key_val" +
+      "ue_bytes\030\002 \003(\014\022\035\n\025associated_cell_count\030" +
+      "\003 \001(\005\"\242\001\n\030ReplicateWALEntryRequest\022!\n\005en" +
+      "try\030\001 \003(\0132\022.hbase.pb.WALEntry\022\034\n\024replica" +
+      "tionClusterId\030\002 \001(\t\022\"\n\032sourceBaseNamespa" +
+      "ceDirPath\030\003 \001(\t\022!\n\031sourceHFileArchiveDir" +
+      "Path\030\004 \001(\t\"\033\n\031ReplicateWALEntryResponse\"" +
+      "\026\n\024RollWALWriterRequest\"0\n\025RollWALWriter",
+      "Response\022\027\n\017region_to_flush\030\001 \003(\014\"#\n\021Sto" +
+      "pServerRequest\022\016\n\006reason\030\001 \002(\t\"\024\n\022StopSe" +
+      "rverResponse\"\026\n\024GetServerInfoRequest\"K\n\n" +
+      "ServerInfo\022)\n\013server_name\030\001 \002(\0132\024.hbase." +
+      "pb.ServerName\022\022\n\nwebui_port\030\002 \001(\r\"B\n\025Get" +
+      "ServerInfoResponse\022)\n\013server_info\030\001 \002(\0132" +
+      "\024.hbase.pb.ServerInfo\"\034\n\032UpdateConfigura" +
+      "tionRequest\"\035\n\033UpdateConfigurationRespon" +
+      "se\"?\n\024GetRegionLoadRequest\022\'\n\ntable_name" +
+      "\030\001 \001(\0132\023.hbase.pb.TableName\"C\n\025GetRegion",
+      "LoadResponse\022*\n\014region_loads\030\001 \003(\0132\024.hba" +
+      "se.pb.RegionLoad2\240\016\n\014AdminService\022P\n\rGet" +
+      "RegionInfo\022\036.hbase.pb.GetRegionInfoReque" +
+      "st\032\037.hbase.pb.GetRegionInfoResponse\022M\n\014G" +
+      "etStoreFile\022\035.hbase.pb.GetStoreFileReque" +
+      "st\032\036.hbase.pb.GetStoreFileResponse\022V\n\017Ge" +
+      "tOnlineRegion\022 .hbase.pb.GetOnlineRegion" +
+      "Request\032!.hbase.pb.GetOnlineRegionRespon" +
+      "se\022G\n\nOpenRegion\022\033.hbase.pb.OpenRegionRe" +
+      "quest\032\034.hbase.pb.OpenRegionResponse\022M\n\014W",
+      "armupRegion\022\035.hbase.pb.WarmupRegionReque" +
+      "st\032\036.hbase.pb.WarmupRegionResponse\022J\n\013Cl" +
+      "oseRegion\022\034.hbase.pb.CloseRegionRequest\032" +
+      "\035.hbase.pb.CloseRegionResponse\022b\n\023CloseR" +
+      "egionForSplit\022$.hbase.pb.CloseRegionForS" +
+      "plitRequest\032%.hbase.pb.CloseRegionForSpl" +
+      "itResponse\022J\n\013FlushRegion\022\034.hbase.pb.Flu" +
+      "shRegionRequest\032\035.hbase.pb.FlushRegionRe" +
+      "sponse\022J\n\013SplitRegion\022\034.hbase.pb.SplitRe" +
+      "gionRequest\032\035.hbase.pb.SplitRegionRespon",
+      "se\022P\n\rCompactRegion\022\036.hbase.pb.CompactRe" +
+      "gionRequest\032\037.hbase.pb.CompactRegionResp" +
+      "onse\022M\n\014MergeRegions\022\035.hbase.pb.MergeReg" +
+      "ionsRequest\032\036.hbase.pb.MergeRegionsRespo" +
+      "nse\022\\\n\021ReplicateWALEntry\022\".hbase.pb.Repl" +
+      "icateWALEntryRequest\032#.hbase.pb.Replicat" +
+      "eWALEntryResponse\022Q\n\006Replay\022\".hbase.pb.R" +
+      "eplicateWALEntryRequest\032#.hbase.pb.Repli" +
+      "cateWALEntryResponse\022P\n\rRollWALWriter\022\036." +
+      "hbase.pb.RollWALWriterRequest\032\037.hbase.pb",
+      ".RollWALWriterResponse\022P\n\rGetServerInfo\022" +
+      "\036.hbase.pb.GetServerInfoRequest\032\037.hbase." +
+      "pb.GetServerInfoResponse\022G\n\nStopServer\022\033" +
+      ".hbase.pb.StopServerRequest\032\034.hbase.pb.S" +
+      "topServerResponse\022_\n\022UpdateFavoredNodes\022" +
+      "#.hbase.pb.UpdateFavoredNodesRequest\032$.h" +
+      "base.pb.UpdateFavoredNodesResponse\022b\n\023Up" +
+      "dateConfiguration\022$.hbase.pb.UpdateConfi" +
+      "gurationRequest\032%.hbase.pb.UpdateConfigu" +
+      "rationResponse\022P\n\rGetRegionLoad\022\036.hbase.",
+      "pb.GetRegionLoadRequest\032\037.hbase.pb.GetRe" +
+      "gionLoadResponse\022k\n\026GetSpaceQuotaSnapsho" +
+      "ts\022\'.hbase.pb.GetSpaceQuotaSnapshotsRequ" +
+      "est\032(.hbase.pb.GetSpaceQuotaSnapshotsRes" +
+      "ponse\022t\n\031GetSpaceQuotaEnforcements\022*.hba" +
+      "se.pb.GetSpaceQuotaEnforcementsRequest\032+" +
+      ".hbase.pb.GetSpaceQuotaEnforcementsRespo" +
       "nseBH\n1org.apache.hadoop.hbase.shaded.pr" +
       "otobuf.generatedB\013AdminProtosH\001\210\001\001\240\001\001"
     };
@@ -27845,6 +28009,7 @@ public final class AdminProtos {
           org.apache.hadoop.hbase.shaded.protobuf.generated.ClusterStatusProtos.getDescriptor(),
           org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.getDescriptor(),
           org.apache.hadoop.hbase.shaded.protobuf.generated.WALProtos.getDescriptor(),
+          org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.getDescriptor(),
         }, assigner);
     internal_static_hbase_pb_GetRegionInfoRequest_descriptor =
       getDescriptor().getMessageTypes().get(0);
@@ -28089,6 +28254,7 @@ public final class AdminProtos {
     org.apache.hadoop.hbase.shaded.protobuf.generated.ClusterStatusProtos.getDescriptor();
     org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.getDescriptor();
     org.apache.hadoop.hbase.shaded.protobuf.generated.WALProtos.getDescriptor();
+    org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.getDescriptor();
   }
 
   // @@protoc_insertion_point(outer_class_scope)

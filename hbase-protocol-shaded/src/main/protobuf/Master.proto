@@ -830,4 +830,8 @@ service MasterService {
   /** returns a list of procedures */
   rpc ListProcedures(ListProceduresRequest)
     returns(ListProceduresResponse);
+
+  /** Fetches the Master's view of space quotas */
+  rpc GetSpaceQuotaRegionSizes(GetSpaceQuotaRegionSizesRequest)
+    returns(GetSpaceQuotaRegionSizesResponse);
 }

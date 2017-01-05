@@ -65033,6 +65033,18 @@ public final class MasterProtos {
           org.apache.hadoop.hbase.shaded.protobuf.generated.MasterProtos.ListProceduresRequest request,
           org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcCallback<org.apache.hadoop.hbase.shaded.protobuf.generated.MasterProtos.ListProceduresResponse> done);
 
+      /**
+       * <pre>
+       ** Fetches the Master's view of space quotas 
+       * </pre>
+       *
+       * <code>rpc GetSpaceQuotaRegionSizes(.hbase.pb.GetSpaceQuotaRegionSizesRequest) returns (.hbase.pb.GetSpaceQuotaRegionSizesResponse);</code>
+       */
+      public abstract void getSpaceQuotaRegionSizes(
+          org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcController controller,
+          org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaRegionSizesRequest request,
+          org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcCallback<org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaRegionSizesResponse> done);
+
     }
 
     public static org.apache.hadoop.hbase.shaded.com.google.protobuf.Service newReflectiveService(
@@ -65494,6 +65506,14 @@ public final class MasterProtos {
           impl.listProcedures(controller, request, done);
         }
 
+        @java.lang.Override
+        public  void getSpaceQuotaRegionSizes(
+            org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcController controller,
+            org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaRegionSizesRequest request,
+            org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcCallback<org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaRegionSizesResponse> done) {
+          impl.getSpaceQuotaRegionSizes(controller, request, done);
+        }
+
       };
     }
 
@@ -65630,6 +65650,8 @@ public final class MasterProtos {
               return impl.abortProcedure(controller, (org.apache.hadoop.hbase.shaded.protobuf.generated.MasterProtos.AbortProcedureRequest)request);
             case 56:
               return impl.listProcedures(controller, (org.apache.hadoop.hbase.shaded.protobuf.generated.MasterProtos.ListProceduresRequest)request);
+            case 57:
+              return impl.getSpaceQuotaRegionSizes(controller, (org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaRegionSizesRequest)request);
             default:
               throw new java.lang.AssertionError("Can't get here.");
           }
@@ -65758,6 +65780,8 @@ public final class MasterProtos {
               return org.apache.hadoop.hbase.shaded.protobuf.generated.MasterProtos.AbortProcedureRequest.getDefaultInstance();
             case 56:
               return org.apache.hadoop.hbase.shaded.protobuf.generated.MasterProtos.ListProceduresRequest.getDefaultInstance();
+            case 57:
+              return org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaRegionSizesRequest.getDefaultInstance();
             default:
               throw new java.lang.AssertionError("Can't get here.");
           }
@@ -65886,6 +65910,8 @@ public final class MasterProtos {
               return org.apache.hadoop.hbase.shaded.protobuf.generated.MasterProtos.AbortProcedureResponse.getDefaultInstance();
             case 56:
               return org.apache.hadoop.hbase.shaded.protobuf.generated.MasterProtos.ListProceduresResponse.getDefaultInstance();
+            case 57:
+              return org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaRegionSizesResponse.getDefaultInstance();
             default:
               throw new java.lang.AssertionError("Can't get here.");
           }
@@ -66607,6 +66633,18 @@ public final class MasterProtos {
         org.apache.hadoop.hbase.shaded.protobuf.generated.MasterProtos.ListProceduresRequest request,
         org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcCallback<org.apache.hadoop.hbase.shaded.protobuf.generated.MasterProtos.ListProceduresResponse> done);
 
+    /**
+     * <pre>
+     ** Fetches the Master's view of space quotas 
+     * </pre>
+     *
+     * <code>rpc GetSpaceQuotaRegionSizes(.hbase.pb.GetSpaceQuotaRegionSizesRequest) returns (.hbase.pb.GetSpaceQuotaRegionSizesResponse);</code>
+     */
+    public abstract void getSpaceQuotaRegionSizes(
+        org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcController controller,
+        org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaRegionSizesRequest request,
+        org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcCallback<org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaRegionSizesResponse> done);
+
     public static final
         org.apache.hadoop.hbase.shaded.com.google.protobuf.Descriptors.ServiceDescriptor
         getDescriptor() {
@@ -66914,6 +66952,11 @@ public final class MasterProtos {
             org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcUtil.<org.apache.hadoop.hbase.shaded.protobuf.generated.MasterProtos.ListProceduresResponse>specializeCallback(
               done));
           return;
+        case 57:
+          this.getSpaceQuotaRegionSizes(controller, (org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaRegionSizesRequest)request,
+            org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcUtil.<org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaRegionSizesResponse>specializeCallback(
+              done));
+          return;
         default:
           throw new java.lang.AssertionError("Can't get here.");
       }
@@ -67042,6 +67085,8 @@ public final class MasterProtos {
           return org.apache.hadoop.hbase.shaded.protobuf.generated.MasterProtos.AbortProcedureRequest.getDefaultInstance();
         case 56:
           return org.apache.hadoop.hbase.shaded.protobuf.generated.MasterProtos.ListProceduresRequest.getDefaultInstance();
+        case 57:
+          return org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaRegionSizesRequest.getDefaultInstance();
         default:
           throw new java.lang.AssertionError("Can't get here.");
       }
@@ -67170,6 +67215,8 @@ public final class MasterProtos {
           return org.apache.hadoop.hbase.shaded.protobuf.generated.MasterProtos.AbortProcedureResponse.getDefaultInstance();
         case 56:
           return org.apache.hadoop.hbase.shaded.protobuf.generated.MasterProtos.ListProceduresResponse.getDefaultInstance();
+        case 57:
+          return org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaRegionSizesResponse.getDefaultInstance();
         default:
           throw new java.lang.AssertionError("Can't get here.");
       }
@@ -68045,6 +68092,21 @@ public final class MasterProtos {
             org.apache.hadoop.hbase.shaded.protobuf.generated.MasterProtos.ListProceduresResponse.class,
             org.apache.hadoop.hbase.shaded.protobuf.generated.MasterProtos.ListProceduresResponse.getDefaultInstance()));
       }
+
+      public  void getSpaceQuotaRegionSizes(
+          org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcController controller,
+          org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaRegionSizesRequest request,
+          org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcCallback<org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaRegionSizesResponse> done) {
+        channel.callMethod(
+          getDescriptor().getMethods().get(57),
+          controller,
+          request,
+          org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaRegionSizesResponse.getDefaultInstance(),
+          org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcUtil.generalizeCallback(
+            done,
+            org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaRegionSizesResponse.class,
+            org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaRegionSizesResponse.getDefaultInstance()));
+      }
     }
 
     public static BlockingInterface newBlockingStub(
@@ -68336,6 +68398,11 @@ public final class MasterProtos {
       public org.apache.hadoop.hbase.shaded.protobuf.generated.MasterProtos.ListProceduresResponse listProcedures(
           org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcController controller,
           org.apache.hadoop.hbase.shaded.protobuf.generated.MasterProtos.ListProceduresRequest request)
+          throws org.apache.hadoop.hbase.shaded.com.google.protobuf.ServiceException;
+
+      public org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaRegionSizesResponse getSpaceQuotaRegionSizes(
+          org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcController controller,
+          org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaRegionSizesRequest request)
           throws org.apache.hadoop.hbase.shaded.com.google.protobuf.ServiceException;
     }
 
@@ -69027,6 +69094,18 @@ public final class MasterProtos {
           controller,
           request,
           org.apache.hadoop.hbase.shaded.protobuf.generated.MasterProtos.ListProceduresResponse.getDefaultInstance());
+      }
+
+
+      public org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaRegionSizesResponse getSpaceQuotaRegionSizes(
+          org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcController controller,
+          org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaRegionSizesRequest request)
+          throws org.apache.hadoop.hbase.shaded.com.google.protobuf.ServiceException {
+        return (org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaRegionSizesResponse) channel.callBlockingMethod(
+          getDescriptor().getMethods().get(57),
+          controller,
+          request,
+          org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaRegionSizesResponse.getDefaultInstance());
       }
 
     }
@@ -69796,7 +69875,7 @@ public final class MasterProtos {
       "E_AUTHENTICATION\020\000\022\031\n\025SECURE_AUTHENTICAT" +
       "ION\020\001\022\021\n\rAUTHORIZATION\020\002\022\026\n\022CELL_AUTHORI" +
       "ZATION\020\003\022\023\n\017CELL_VISIBILITY\020\004*(\n\020MasterS" +
-      "witchType\022\t\n\005SPLIT\020\000\022\t\n\005MERGE\020\0012\323(\n\rMast" +
+      "witchType\022\t\n\005SPLIT\020\000\022\t\n\005MERGE\020\0012\306)\n\rMast" +
       "erService\022e\n\024GetSchemaAlterStatus\022%.hbas",
       "e.pb.GetSchemaAlterStatusRequest\032&.hbase" +
       ".pb.GetSchemaAlterStatusResponse\022b\n\023GetT" +
@@ -69926,9 +70005,12 @@ public final class MasterProtos {
       "edure\022\037.hbase.pb.AbortProcedureRequest\032 " +
       ".hbase.pb.AbortProcedureResponse\022S\n\016List" +
       "Procedures\022\037.hbase.pb.ListProceduresRequ" +
-      "est\032 .hbase.pb.ListProceduresResponseBI\n" +
-      "1org.apache.hadoop.hbase.shaded.protobuf",
-      ".generatedB\014MasterProtosH\001\210\001\001\240\001\001"
+      "est\032 .hbase.pb.ListProceduresResponse\022q\n" +
+      "\030GetSpaceQuotaRegionSizes\022).hbase.pb.Get",
+      "SpaceQuotaRegionSizesRequest\032*.hbase.pb." +
+      "GetSpaceQuotaRegionSizesResponseBI\n1org." +
+      "apache.hadoop.hbase.shaded.protobuf.gene" +
+      "ratedB\014MasterProtosH\001\210\001\001\240\001\001"
     };
     org.apache.hadoop.hbase.shaded.com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner assigner =
         new org.apache.hadoop.hbase.shaded.com.google.protobuf.Descriptors.FileDescriptor.    InternalDescriptorAssigner() {

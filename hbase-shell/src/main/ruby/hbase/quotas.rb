@@ -20,10 +20,12 @@
 include Java
 java_import java.util.concurrent.TimeUnit
 java_import org.apache.hadoop.hbase.TableName
+java_import org.apache.hadoop.hbase.ServerName
 java_import org.apache.hadoop.hbase.quotas.ThrottleType
 java_import org.apache.hadoop.hbase.quotas.QuotaFilter
 java_import org.apache.hadoop.hbase.quotas.QuotaRetriever
 java_import org.apache.hadoop.hbase.quotas.QuotaSettingsFactory
+java_import org.apache.hadoop.hbase.quotas.QuotaTableUtil
 
 module HBaseQuotasConstants
   GLOBAL_BYPASS = 'GLOBAL_BYPASS'
@@ -105,6 +107,20 @@ module Hbase
         raise "One of USER, TABLE or NAMESPACE must be specified"
       end
       @admin.setQuota(settings)
+    end
+
+    def get_master_table_sizes()
+      QuotaTableUtil.getMasterReportedTableSizes(@admin.getConnection())
+    end
+
+    def get_rs_quota_snapshots(rs)
+      QuotaTableUtil.getRegionServerQuotaSnapshots(@admin.getConnection(),
+          ServerName.valueOf(rs))
+    end
+
+    def get_rs_quota_violations(rs)
+      QuotaTableUtil.getRegionServerQuotaViolations(@admin.getConnection(),
+          ServerName.valueOf(rs))
     end
 
     def set_global_bypass(bypass, args)
