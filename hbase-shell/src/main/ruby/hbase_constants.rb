@@ -81,6 +81,7 @@ module HBaseConstants
   NAMESPACES = 'NAMESPACES'
   CONFIG = 'CONFIG'
   DATA = 'DATA'
+  POLICY = 'POLICY'
 
   # Load constants from hbase java API
   def self.promote_constants(constants)

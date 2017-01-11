@@ -24,14 +24,22 @@ java_import org.apache.hadoop.hbase.quotas.ThrottleType
 java_import org.apache.hadoop.hbase.quotas.QuotaFilter
 java_import org.apache.hadoop.hbase.quotas.QuotaRetriever
 java_import org.apache.hadoop.hbase.quotas.QuotaSettingsFactory
+java_import org.apache.hadoop.hbase.quotas.SpaceViolationPolicy
 
 module HBaseQuotasConstants
+  # RPC Quota constants
   GLOBAL_BYPASS = 'GLOBAL_BYPASS'
   THROTTLE_TYPE = 'THROTTLE_TYPE'
   THROTTLE = 'THROTTLE'
   REQUEST = 'REQUEST'
   WRITE = 'WRITE'
   READ = 'READ'
+  # Space quota constants
+  SPACE = 'SPACE'
+  NO_INSERTS = 'NO_INSERTS'
+  NO_WRITES = 'NO_WRITES'
+  NO_WRITES_COMPACTIONS = 'NO_WRITES_COMPACTIONS'
+  DISABLE = 'DISABLE'
 end
 
 module Hbase
@@ -103,6 +111,42 @@ module Hbase
         settings = QuotaSettingsFactory.unthrottleNamespace(namespace)
       else
         raise "One of USER, TABLE or NAMESPACE must be specified"
+      end
+      @admin.setQuota(settings)
+    end
+
+    def limit_space(args)
+      raise(ArgumentError, 'Argument should be a Hash') unless args.kind_of?(Hash)
+      # Let the user provide a raw number
+      if args[LIMIT].is_a?(Numeric)
+        limit = args[LIMIT]
+      else
+        # Parse a string a 1K, 2G, etc.
+        limit = _parse_size(args[LIMIT])
+      end
+      # Extract the policy, failing if something bogus was provided
+      policy = SpaceViolationPolicy.valueOf(args[POLICY])
+      # Create a table or namespace quota
+      if args.key?(TABLE)
+        settings = QuotaSettingsFactory.limitTableSpace(TableName.valueOf(args.delete(TABLE)), limit, policy)
+      elsif args.key?(NAMESPACE)
+        settings = QuotaSettingsFactory.limitNamespaceSpace(args.delete(NAMESPACE), limit, policy)
+      else
+        raise(ArgumentError, 'One of TABLE or NAMESPACE must be specified.')
+      end
+      # Apply the quota
+      @admin.setQuota(settings)
+    end
+
+    def remove_space_limit(args)
+      raise(ArgumentError, 'Argument should be a Hash') unless args.kind_of?(Hash)
+      if args.key?(TABLE)
+        table = TableName.valueOf(args.delete(TABLE))
+        settings = QuotaSettingsFactory.removeTableSpaceLimit(table)
+      elsif args.key?(NAMESPACE)
+        settings = QuotaSettingsFactory.removeNamespaceSpaceLimit(args.delete(NAMESPACE))
+      else
+        raise(ArgumentError, 'One of TABLE or NAMESPACE must be specified.')
       end
       @admin.setQuota(settings)
     end
