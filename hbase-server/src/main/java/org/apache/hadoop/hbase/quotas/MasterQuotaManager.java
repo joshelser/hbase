@@ -529,12 +529,18 @@ public class MasterQuotaManager implements RegionStateListener {
   }
 
   public void addRegionSize(HRegionInfo hri, long size) {
+    if (null == regionSizes) {
+      return;
+    }
     // TODO Make proper API?
     // TODO Prevent from growing indefinitely
     regionSizes.put(hri, size);
   }
 
   public Map<HRegionInfo, Long> snapshotRegionSizes() {
+    if (null == regionSizes) {
+      return new HashMap<>();
+    }
     // TODO Make proper API?
     return new HashMap<>(regionSizes);
   }
