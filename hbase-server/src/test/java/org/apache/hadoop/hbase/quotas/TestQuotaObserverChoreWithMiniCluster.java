@@ -192,40 +192,42 @@ public class TestQuotaObserverChoreWithMiniCluster {
 
     helper.writeData(tn1, 2L * SpaceQuotaHelperForTests.ONE_MEGABYTE);
     admin.flush(tn1);
-    Map<TableName,SpaceQuotaSnapshot> violatedQuotas = snapshotNotifier.copySnapshots();
+    Map<TableName,SpaceQuotaSnapshot> snapshots = snapshotNotifier.copySnapshots();
     for (int i = 0; i < 5; i++) {
       // Check a few times to make sure we don't prematurely move to violation
-      assertEquals("Should not see any quota violations after writing 2MB of data", 0, violatedQuotas.size());
+      assertEquals(
+          "Should not see any quota violations after writing 2MB of data: " + snapshots, 0,
+          numQuotaSnapshotsInViolation(snapshots));
       try {
         Thread.sleep(1000);
       } catch (InterruptedException e) {
         LOG.debug("Interrupted while sleeping." , e);
       }
-      violatedQuotas = snapshotNotifier.copySnapshots();
+      snapshots = snapshotNotifier.copySnapshots();
     }
 
     helper.writeData(tn2, 2L * SpaceQuotaHelperForTests.ONE_MEGABYTE);
     admin.flush(tn2);
-    violatedQuotas = snapshotNotifier.copySnapshots();
+    snapshots = snapshotNotifier.copySnapshots();
     for (int i = 0; i < 5; i++) {
       // Check a few times to make sure we don't prematurely move to violation
       assertEquals("Should not see any quota violations after writing 4MB of data", 0,
-          violatedQuotas.size());
+          numQuotaSnapshotsInViolation(snapshots));
       try {
         Thread.sleep(1000);
       } catch (InterruptedException e) {
         LOG.debug("Interrupted while sleeping." , e);
       }
-      violatedQuotas = snapshotNotifier.copySnapshots();
+      snapshots = snapshotNotifier.copySnapshots();
     }
 
     // Writing the final 2MB of data will push the namespace over the 5MB limit (6MB in total)
     // and should push all three tables in the namespace into violation.
     helper.writeData(tn3, 2L * SpaceQuotaHelperForTests.ONE_MEGABYTE);
     admin.flush(tn3);
-    violatedQuotas = snapshotNotifier.copySnapshots();
-    while (violatedQuotas.size() < 3) {
-      LOG.debug("Saw fewer violations than desired (expected 3): " + violatedQuotas
+    snapshots = snapshotNotifier.copySnapshots();
+    while (numQuotaSnapshotsInViolation(snapshots) < 3) {
+      LOG.debug("Saw fewer violations than desired (expected 3): " + snapshots
           + ". Current reports: " + master.getMasterQuotaManager().snapshotRegionSizes());
       try {
         Thread.sleep(1000);
@@ -233,19 +235,19 @@ public class TestQuotaObserverChoreWithMiniCluster {
         LOG.debug("Interrupted while sleeping.", e);
         Thread.currentThread().interrupt();
       }
-      violatedQuotas = snapshotNotifier.copySnapshots();
+      snapshots = snapshotNotifier.copySnapshots();
     }
 
-    SpaceQuotaSnapshot snapshot1 = violatedQuotas.remove(tn1);
+    SpaceQuotaSnapshot snapshot1 = snapshots.remove(tn1);
     assertNotNull("tn1 should be in violation", snapshot1);
     assertEquals(violationPolicy, snapshot1.getQuotaStatus().getPolicy());
-    SpaceQuotaSnapshot snapshot2 = violatedQuotas.remove(tn2);
+    SpaceQuotaSnapshot snapshot2 = snapshots.remove(tn2);
     assertNotNull("tn2 should be in violation", snapshot2);
     assertEquals(violationPolicy, snapshot2.getQuotaStatus().getPolicy());
-    SpaceQuotaSnapshot snapshot3 = violatedQuotas.remove(tn3);
+    SpaceQuotaSnapshot snapshot3 = snapshots.remove(tn3);
     assertNotNull("tn3 should be in violation", snapshot3);
     assertEquals(violationPolicy, snapshot3.getQuotaStatus().getPolicy());
-    assertTrue("Unexpected additional quota violations: " + violatedQuotas, violatedQuotas.isEmpty());
+    assertTrue("Unexpected additional quota violations: " + snapshots, snapshots.isEmpty());
   }
 
   @Test
@@ -274,8 +276,8 @@ public class TestQuotaObserverChoreWithMiniCluster {
     Map<TableName,SpaceQuotaSnapshot> violatedQuotas = snapshotNotifier.copySnapshots();
     for (int i = 0; i < 5; i++) {
       // Check a few times to make sure we don't prematurely move to violation
-      assertEquals("Should not see any quota violations after writing 2MB of data", 0,
-          violatedQuotas.size());
+      assertEquals("Should not see any quota violations after writing 2MB of data: " + violatedQuotas, 0,
+          numQuotaSnapshotsInViolation(violatedQuotas));
       try {
         Thread.sleep(1000);
       } catch (InterruptedException e) {
@@ -287,7 +289,7 @@ public class TestQuotaObserverChoreWithMiniCluster {
     helper.writeData(tn2, 2L * SpaceQuotaHelperForTests.ONE_MEGABYTE);
     admin.flush(tn2);
     violatedQuotas = snapshotNotifier.copySnapshots();
-    while (violatedQuotas.size() < 2) {
+    while (numQuotaSnapshotsInViolation(violatedQuotas) < 2) {
       LOG.debug("Saw fewer violations than desired (expected 2): " + violatedQuotas
           + ". Current reports: " + master.getMasterQuotaManager().snapshotRegionSizes());
       try {
@@ -437,6 +439,16 @@ public class TestQuotaObserverChoreWithMiniCluster {
 
     TableName tableWithoutQuota = helper.createTable();
     assertNull(chore.getTableViolationStore().getSpaceQuota(tableWithoutQuota));
+  }
+
+  private int numQuotaSnapshotsInViolation(Map<TableName,SpaceQuotaSnapshot> snapshots) {
+    int sum = 0;
+    for (SpaceQuotaSnapshot snapshot : snapshots.values()) {
+      if (snapshot.getQuotaStatus().isInViolation()) {
+        sum++;
+      }
+    }
+    return sum;
   }
 
   private void sleepWithInterrupt(long millis) {
