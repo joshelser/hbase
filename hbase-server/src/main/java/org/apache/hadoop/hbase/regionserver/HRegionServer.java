@@ -793,7 +793,12 @@ public class HRegionServer extends HasThread implements
     try {
       setupClusterConnection();
 
-      this.secureBulkLoadManager = new SecureBulkLoadManager(this.conf, clusterConnection);
+      // Setup the Quota Manager
+      rsQuotaManager = new RegionServerRpcQuotaManager(this);
+      rsSpaceQuotaManager = new RegionServerSpaceQuotaManager(this);
+
+      this.secureBulkLoadManager = new SecureBulkLoadManager(
+          this.conf, clusterConnection, getRegionServerSpaceQuotaManager());
       this.secureBulkLoadManager.start();
 
       // Health checker thread.
@@ -925,14 +930,10 @@ public class HRegionServer extends HasThread implements
       nonceManagerChore = this.nonceManager.createCleanupScheduledChore(this);
     }
 
-    // Setup the Quota Manager
-    rsQuotaManager = new RegionServerRpcQuotaManager(this);
-    rsSpaceQuotaManager = new RegionServerSpaceQuotaManager(this);
 
     if (QuotaUtil.isQuotaEnabled(conf)) {
       this.fsUtilizationChore = new FileSystemUtilizationChore(this);
     }
-
     // Setup RPC client for master communication
     rpcClient = RpcClientFactory.createClient(conf, clusterId, new InetSocketAddress(
         rpcServices.isa.getAddress(), 0), clusterConnection.getConnectionMetrics());

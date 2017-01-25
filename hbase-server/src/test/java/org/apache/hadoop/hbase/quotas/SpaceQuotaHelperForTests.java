@@ -20,7 +20,9 @@ import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
@@ -29,8 +31,11 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.HColumnDescriptor;
+import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.NamespaceDescriptor;
 import org.apache.hadoop.hbase.TableName;
@@ -38,7 +43,10 @@ import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.master.HMaster;
+import org.apache.hadoop.hbase.regionserver.TestHRegionServerBulkLoad;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.hbase.util.Pair;
 import org.junit.rules.TestName;
 
 import com.google.common.collect.HashMultimap;
@@ -222,5 +230,31 @@ public class SpaceQuotaHelperForTests {
         fail("Unexpected table name with null tableName and namespace: " + tn);
       }
     }
+  }
+
+  Map<HRegionInfo,Long> getReportedSizesForTable(TableName tn) {
+    HMaster master = testUtil.getMiniHBaseCluster().getMaster();
+    MasterQuotaManager quotaManager = master.getMasterQuotaManager();
+    Map<HRegionInfo,Long> filteredRegionSizes = new HashMap<>();
+    for (Entry<HRegionInfo,Long> entry : quotaManager.snapshotRegionSizes().entrySet()) {
+      if (entry.getKey().getTable().equals(tn)) {
+        filteredRegionSizes.put(entry.getKey(), entry.getValue());
+      }
+    }
+    return filteredRegionSizes;
+  }
+
+  List<Pair<byte[], String>> createFiles(TableName tn, int numFiles, int numRowsPerFile, Path baseDir) throws IOException {
+    FileSystem fs = testUtil.getTestFileSystem();
+    fs.mkdirs(baseDir);
+    final List<Pair<byte[], String>> famPaths = new ArrayList<Pair<byte[], String>>();
+    for (int i = 1; i <= numFiles; i++) {
+      Path hfile = new Path(baseDir, "file" + i);
+      TestHRegionServerBulkLoad.createHFile(
+          fs, hfile, Bytes.toBytes(SpaceQuotaHelperForTests.F1), Bytes.toBytes("to"),
+          Bytes.toBytes("reject"), numRowsPerFile);
+      famPaths.add(new Pair<>(Bytes.toBytes(SpaceQuotaHelperForTests.F1), hfile.toString()));
+    }
+    return famPaths;
   }
 }

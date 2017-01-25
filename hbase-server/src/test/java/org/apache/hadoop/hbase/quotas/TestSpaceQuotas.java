@@ -257,7 +257,9 @@ public class TestSpaceQuotas {
     TableName tableName = writeUntilViolationAndVerifyViolation(SpaceViolationPolicy.NO_WRITES, p);
 
     // The table is now in violation. Try to do a bulk load
-    ClientServiceCallable<Void> callable = generateFileToLoad(tableName, 1, 50);
+    FileSystem fs = TEST_UTIL.getTestFileSystem();
+    Path baseDir = new Path(fs.getHomeDirectory(), testName.getMethodName() + "_files");
+    ClientServiceCallable<Void> callable = generateFileToLoad(tableName, 1, 50, baseDir);
     RpcRetryingCallerFactory factory = new RpcRetryingCallerFactory(TEST_UTIL.getConfiguration());
     RpcRetryingCaller<Void> caller = factory.<Void> newCaller();
     try {
@@ -281,7 +283,7 @@ public class TestSpaceQuotas {
     HRegionServer rs = TEST_UTIL.getMiniHBaseCluster().getRegionServer(0);
     RegionServerSpaceQuotaManager spaceQuotaManager = rs.getRegionServerSpaceQuotaManager();
     Map<TableName,SpaceQuotaSnapshot> snapshots = spaceQuotaManager.copyQuotaSnapshots();
-    Map<HRegionInfo,Long> regionSizes = getReportedSizesForTable(tn);
+    Map<HRegionInfo,Long> regionSizes = helper.getReportedSizesForTable(tn);
     while (true) {
       SpaceQuotaSnapshot snapshot = snapshots.get(tn);
       if (null != snapshot && snapshot.getLimit() > 0) {
@@ -290,7 +292,7 @@ public class TestSpaceQuotas {
       LOG.debug("Snapshot does not yet realize quota limit: " + snapshots + ", regionsizes: " + regionSizes);
       Thread.sleep(3000);
       snapshots = spaceQuotaManager.copyQuotaSnapshots();
-      regionSizes = getReportedSizesForTable(tn);
+      regionSizes = helper.getReportedSizesForTable(tn);
     }
     // Our quota limit should be reflected in the latest snapshot
     SpaceQuotaSnapshot snapshot = snapshots.get(tn);
@@ -303,8 +305,9 @@ public class TestSpaceQuotas {
     assertTrue("Expected to find Noop policy, but got " + enforcement.getClass().getSimpleName(), enforcement instanceof BulkLoadCheckingViolationPolicyEnforcement);
 
     // Should generate two files, each of which is over 25KB each
-    ClientServiceCallable<Void> callable = generateFileToLoad(tn, 2, 500);
     FileSystem fs = TEST_UTIL.getTestFileSystem();
+    Path baseDir = new Path(fs.getHomeDirectory(), testName.getMethodName() + "_files");
+    ClientServiceCallable<Void> callable = generateFileToLoad(tn, 2, 500, baseDir);
     FileStatus[] files = fs.listStatus(
         new Path(fs.getHomeDirectory(), testName.getMethodName() + "_files"));
     for (FileStatus file : files) {
@@ -358,18 +361,6 @@ public class TestSpaceQuotas {
     p.addColumn(
         Bytes.toBytes(SpaceQuotaHelperForTests.F1), Bytes.toBytes("to"), Bytes.toBytes("reject"));
     verifyViolation(policy, tn, p);
-  }
-
-  private Map<HRegionInfo,Long> getReportedSizesForTable(TableName tn) {
-    HMaster master = TEST_UTIL.getMiniHBaseCluster().getMaster();
-    MasterQuotaManager quotaManager = master.getMasterQuotaManager();
-    Map<HRegionInfo,Long> filteredRegionSizes = new HashMap<>();
-    for (Entry<HRegionInfo,Long> entry : quotaManager.snapshotRegionSizes().entrySet()) {
-      if (entry.getKey().getTable().equals(tn)) {
-        filteredRegionSizes.put(entry.getKey(), entry.getValue());
-      }
-    }
-    return filteredRegionSizes;
   }
 
   private TableName writeUntilViolation(SpaceViolationPolicy policyToViolate) throws Exception {
@@ -433,20 +424,12 @@ public class TestSpaceQuotas {
     assertTrue("Expected to see an exception writing data to a table exceeding its quota", sawError);
   }
 
-  private ClientServiceCallable<Void> generateFileToLoad(TableName tn, int numFiles, int numRowsPerFile) throws Exception {
+  private ClientServiceCallable<Void> generateFileToLoad(
+      TableName tn, int numFiles, int numRowsPerFile, Path baseDir) throws Exception {
     Connection conn = TEST_UTIL.getConnection();
-    FileSystem fs = TEST_UTIL.getTestFileSystem();
     Configuration conf = TEST_UTIL.getConfiguration();
-    Path baseDir = new Path(fs.getHomeDirectory(), testName.getMethodName() + "_files");
-    fs.mkdirs(baseDir);
-    final List<Pair<byte[], String>> famPaths = new ArrayList<Pair<byte[], String>>();
-    for (int i = 1; i <= numFiles; i++) {
-      Path hfile = new Path(baseDir, "file" + i);
-      TestHRegionServerBulkLoad.createHFile(
-          fs, hfile, Bytes.toBytes(SpaceQuotaHelperForTests.F1), Bytes.toBytes("to"),
-          Bytes.toBytes("reject"), numRowsPerFile);
-      famPaths.add(new Pair<>(Bytes.toBytes(SpaceQuotaHelperForTests.F1), hfile.toString()));
-    }
+    final List<Pair<byte[], String>> famPaths = helper.createFiles(
+        tn, numFiles, numRowsPerFile, baseDir);
     
     // bulk load HFiles
     Table table = conn.getTable(tn);
