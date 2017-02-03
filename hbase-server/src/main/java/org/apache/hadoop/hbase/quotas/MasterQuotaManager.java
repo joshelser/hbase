@@ -21,9 +21,12 @@ package org.apache.hadoop.hbase.quotas;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.commons.lang.builder.HashCodeBuilder;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.hbase.DoNotRetryIOException;
@@ -46,6 +49,8 @@ import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.Throttle;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.ThrottleRequest;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.TimedQuota;
 
+import com.google.common.annotations.VisibleForTesting;
+
 /**
  * Master Quota Manager.
  * It is responsible for initialize the quota table on the first-run and
@@ -65,7 +70,7 @@ public class MasterQuotaManager implements RegionStateListener {
   private NamedLock<String> userLocks;
   private boolean enabled = false;
   private NamespaceAuditor namespaceQuotaManager;
-  private ConcurrentHashMap<HRegionInfo, Long> regionSizes;
+  private ConcurrentHashMap<HRegionInfo, SizeSnapshot> regionSizes;
 
   public MasterQuotaManager(final MasterServices masterServices) {
     this.masterServices = masterServices;
@@ -528,21 +533,87 @@ public class MasterQuotaManager implements RegionStateListener {
     }
   }
 
-  public void addRegionSize(HRegionInfo hri, long size) {
+  /**
+   * Holds the size of a region at the given time, millis since the epoch.
+   */
+  private static class SizeSnapshot {
+    private final long size;
+    private final long time;
+
+    public SizeSnapshot(long size, long time) {
+      this.size = size;
+      this.time = time;
+    }
+
+    public long getSize() {
+      return size;
+    }
+
+    public long getTime() {
+      return time;
+    }
+
+    public boolean equals(Object o) {
+      if (o instanceof SizeSnapshot) {
+        SizeSnapshot other = (SizeSnapshot) o;
+        return size == other.size && time == other.time;
+      }
+      return false;
+    }
+
+    public int hashCode() {
+      HashCodeBuilder hcb = new HashCodeBuilder();
+      return hcb.append(size).append(time).toHashCode();
+    }
+
+    @Override
+    public String toString() {
+      StringBuilder sb = new StringBuilder(32);
+      sb.append("SizeSnapshot={size=").append(size).append("B, ");
+      sb.append("time=").append(time).append("}");
+      return sb.toString();
+    }
+  }
+
+  @VisibleForTesting
+  void initializeRegionSizes() {
+    assert null == regionSizes;
+    this.regionSizes = new ConcurrentHashMap<>();
+  }
+
+  public void addRegionSize(HRegionInfo hri, long size, long time) {
     if (null == regionSizes) {
       return;
     }
-    // TODO Make proper API?
-    // TODO Prevent from growing indefinitely
-    regionSizes.put(hri, size);
+    regionSizes.put(hri, new SizeSnapshot(size, time));
   }
 
   public Map<HRegionInfo, Long> snapshotRegionSizes() {
+		HashMap<HRegionInfo, Long> copy = new HashMap<>();
+		if (null == regionSizes) {
+			return copy;
+		}
+
+		for (Entry<HRegionInfo, SizeSnapshot> entry : regionSizes.entrySet()) {
+			copy.put(entry.getKey(), entry.getValue().getSize());
+		}
+    return copy;
+  }
+
+  public int pruneEntriesOlderThan(long timeToPruneBefore) {
     if (null == regionSizes) {
-      return new HashMap<>();
+      return 0;
     }
-    // TODO Make proper API?
-    return new HashMap<>(regionSizes);
+    int numEntriesRemoved = 0;
+    Iterator<Entry<HRegionInfo,SizeSnapshot>> iterator = regionSizes.entrySet().iterator();
+    while (iterator.hasNext()) {
+      long currentEntryTime = iterator.next().getValue().getTime();
+      if (currentEntryTime < timeToPruneBefore) {
+        iterator.remove();
+        numEntriesRemoved++;
+      }
+    }
+    return numEntriesRemoved;
   }
 }
 
