@@ -54,11 +54,11 @@ public class QuotaObserverChore extends ScheduledChore {
   private static final Log LOG = LogFactory.getLog(QuotaObserverChore.class);
   static final String VIOLATION_OBSERVER_CHORE_PERIOD_KEY =
       "hbase.master.quotas.violation.observer.chore.period";
-  static final int VIOLATION_OBSERVER_CHORE_PERIOD_DEFAULT = 1000 * 60 * 5; // 5 minutes in millis
+  static final int VIOLATION_OBSERVER_CHORE_PERIOD_DEFAULT = 1000 * 60 * 1; // 1 minute in millis
 
   static final String VIOLATION_OBSERVER_CHORE_DELAY_KEY =
       "hbase.master.quotas.violation.observer.chore.delay";
-  static final long VIOLATION_OBSERVER_CHORE_DELAY_DEFAULT = 1000L * 60L; // 1 minute
+  static final long VIOLATION_OBSERVER_CHORE_DELAY_DEFAULT = 1000L * 15L; // 15 seconds in millis
 
   static final String VIOLATION_OBSERVER_CHORE_TIMEUNIT_KEY =
       "hbase.master.quotas.violation.observer.chore.timeunit";
