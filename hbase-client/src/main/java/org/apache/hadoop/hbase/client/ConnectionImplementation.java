@@ -94,6 +94,8 @@ import org.apache.hadoop.hbase.shaded.protobuf.generated.MasterProtos.SecurityCa
 import org.apache.hadoop.hbase.shaded.protobuf.generated.MasterProtos.SecurityCapabilitiesResponse;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.MasterProtos.SetNormalizerRunningRequest;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.MasterProtos.SetNormalizerRunningResponse;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetQuotaStatesRequest;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetQuotaStatesResponse;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaRegionSizesRequest;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaRegionSizesResponse;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.ReplicationProtos.AddReplicationPeerRequest;
@@ -1739,6 +1741,12 @@ class ConnectionImplementation implements ClusterConnection, Closeable {
           RpcController controller, GetSpaceQuotaRegionSizesRequest request)
           throws ServiceException {
         return stub.getSpaceQuotaRegionSizes(controller, request);
+      }
+
+      @Override
+      public GetQuotaStatesResponse getQuotaStates(
+          RpcController controller, GetQuotaStatesRequest request) throws ServiceException {
+        return stub.getQuotaStates(controller, request);
       }
     };
   }
