@@ -21,8 +21,11 @@ package org.apache.hadoop.hbase.master;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.commons.logging.Log;
@@ -211,6 +214,9 @@ import org.apache.hadoop.hbase.shaded.protobuf.generated.MasterProtos.TruncateTa
 import org.apache.hadoop.hbase.shaded.protobuf.generated.MasterProtos.TruncateTableResponse;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.MasterProtos.UnassignRegionRequest;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.MasterProtos.UnassignRegionResponse;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaRegionSizesRequest;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaRegionSizesResponse;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuotaRegionSizesResponse.RegionSizes;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.RegionServerStatusProtos.GetLastFlushedSequenceIdRequest;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.RegionServerStatusProtos.GetLastFlushedSequenceIdResponse;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.RegionServerStatusProtos.RegionServerReportRequest;
@@ -2025,6 +2031,40 @@ public class MasterRpcServices extends RSRpcServices
         quotaManager.addRegionSize(HRegionInfo.convert(report.getRegion()), report.getSize());
       }
       return RegionSpaceUseReportResponse.newBuilder().build();
+    } catch (Exception e) {
+      throw new ServiceException(e);
+    }
+  }
+
+  @Override
+  public GetSpaceQuotaRegionSizesResponse getSpaceQuotaRegionSizes(
+      RpcController controller, GetSpaceQuotaRegionSizesRequest request) throws ServiceException {
+    try {
+      master.checkInitialized();
+      MasterQuotaManager quotaManager = this.master.getMasterQuotaManager();
+      GetSpaceQuotaRegionSizesResponse.Builder builder =
+          GetSpaceQuotaRegionSizesResponse.newBuilder();
+      if (null != quotaManager) {
+        Map<HRegionInfo,Long> regionSizes = quotaManager.snapshotRegionSizes();
+        Map<TableName,Long> regionSizesByTable = new HashMap<>();
+        // Translate hregioninfo+long -> tablename+long
+        for (Entry<HRegionInfo,Long> entry : regionSizes.entrySet()) {
+          final TableName tableName = entry.getKey().getTable();
+          Long prevSize = regionSizesByTable.get(tableName);
+          if (null == prevSize) {
+            prevSize = 0L;
+          }
+          regionSizesByTable.put(tableName, prevSize + entry.getValue());
+        }
+        // Serialize them into the protobuf
+        for (Entry<TableName,Long> tableSize : regionSizesByTable.entrySet()) {
+          builder.addSizes(RegionSizes.newBuilder()
+              .setTableName(ProtobufUtil.toProtoTableName(tableSize.getKey()))
+              .setSize(tableSize.getValue()).build());
+        }
+        return builder.build();
+      }
+      return builder.build();
     } catch (Exception e) {
       throw new ServiceException(e);
     }
