@@ -112,4 +112,25 @@ public class MetricsMaster {
   public void incrementQuotaObserverTime(final long executionTime) {
     masterQuotaSource.incrementSpaceQuotaObserverChoreTime(executionTime);
   }
+
+  /**
+   * Sets the execution time of a period of the {@code SnapshotQuotaObserverChore}.
+   */
+  public void incrementSnapshotObserverTime(final long executionTime) {
+    masterQuotaSource.incrementSnapshotObserverChoreTime(executionTime);
+  }
+
+  /**
+   * Sets the execution time to compute the size of a single snapshot.
+   */
+  public void incrementSnapshotSizeComputationTime(final long executionTime) {
+    masterQuotaSource.incrementSnapshotObserverSnapshotComputationTime(executionTime);
+  }
+
+  /**
+   * Sets the execution time to fetch the mapping of snapshots to originating table.
+   */
+  public void incrementSnapshotFetchTime(long executionTime) {
+    masterQuotaSource.incrementSnapshotObserverSnapshotFetchTime(executionTime);
+  }
 }
