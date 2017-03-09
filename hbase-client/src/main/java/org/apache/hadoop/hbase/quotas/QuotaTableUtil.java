@@ -71,16 +71,18 @@ import org.apache.hadoop.hbase.util.Strings;
 
 /**
  * Helper class to interact with the quota table.
- * <pre>
- *     ROW-KEY      FAM/QUAL        DATA
- *   n.&lt;namespace&gt; q:s         &lt;global-quotas&gt;
- *   t.&lt;namespace&gt; u:p        &lt;namespace-quota policy&gt;
- *   t.&lt;table&gt;     q:s         &lt;global-quotas&gt;
- *   t.&lt;table&gt;     u:p        &lt;table-quota policy&gt;
- *   u.&lt;user&gt;      q:s         &lt;global-quotas&gt;
- *   u.&lt;user&gt;      q:s.&lt;table&gt; &lt;table-quotas&gt;
- *   u.&lt;user&gt;      q:s.&lt;ns&gt;:   &lt;namespace-quotas&gt;
- * </pre>
+ * <table>
+ *   <tr><th>ROW-KEY</th><th>FAM/QUAL</th><th>DATA</th></tr>
+ *   <tr><td>n.&lt;namespace&gt;</td><td>q:s</td><td>&lt;global-quotas&gt;</td></tr>
+ *   <tr><td>n.&lt;namespace&gt;</td><td>u:p</td><td>&lt;namespace-quota policy&gt;</td></tr>
+ *   <tr><td>n.&lt;namespace&gt;</td><td>u:s.&lt;snapshot name&gt;</td><td>&lt;SpaceQuotaSnapshot&gt;</td></tr>
+ *   <tr><td>t.&lt;table&gt;</td><td>q:s</td><td>&lt;global-quotas&gt;</td></tr>
+ *   <tr><td>t.&lt;table&gt;</td><td>u:p</td><td>&lt;table-quota policy&gt;</td></tr>
+ *   <tr><td>t.&lt;table&gt;</td><td>u:s.&lt;snapshot name&gt;</td><td>&lt;SpaceQuotaSnapshot&gt;</td></tr>
+ *   <tr><td>u.&lt;user&gt;</td><td>q:s</td><td>&lt;global-quotas&gt;</td></tr>
+ *   <tr><td>u.&lt;user&gt;</td><td>q:s.&lt;table&gt;</td><td>&lt;table-quotas&gt;</td></tr>
+ *   <tr><td>u.&lt;user&gt;</td><td>q:s.&lt;ns&gt;</td><td>&lt;namespace-quotas&gt;</td></tr>
+ * </table
  */
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
@@ -96,6 +98,7 @@ public class QuotaTableUtil {
   protected static final byte[] QUOTA_QUALIFIER_SETTINGS = Bytes.toBytes("s");
   protected static final byte[] QUOTA_QUALIFIER_SETTINGS_PREFIX = Bytes.toBytes("s.");
   protected static final byte[] QUOTA_QUALIFIER_POLICY = Bytes.toBytes("p");
+  protected static final byte[] QUOTA_SNAPSHOT_SIZE_QUALIFIER = Bytes.toBytes("s");
   protected static final String QUOTA_POLICY_COLUMN =
       Bytes.toString(QUOTA_FAMILY_USAGE) + ":" + Bytes.toString(QUOTA_QUALIFIER_POLICY);
   protected static final byte[] QUOTA_USER_ROW_KEY_PREFIX = Bytes.toBytes("u.");
@@ -239,6 +242,17 @@ public class QuotaTableUtil {
   }
 
   /**
+   * Creates a {@link Get} for the snapshot size against the given table.
+   */
+  public static Get makeGetForSnapshotSize(TableName tn, String snapshot) {
+    Get g = new Get(Bytes.add(QUOTA_TABLE_ROW_KEY_PREFIX, Bytes.toBytes(tn.toString())));
+    g.addColumn(
+        QUOTA_FAMILY_USAGE,
+        Bytes.add(QUOTA_SNAPSHOT_SIZE_QUALIFIER, Bytes.toBytes(snapshot)));
+    return g;
+  }
+
+  /**
    * Extracts the {@link SpaceViolationPolicy} and {@link TableName} from the provided
    * {@link Result} and adds them to the given {@link Map}. If the result does not contain
    * the expected information or the serialized policy in the value is invalid, this method
@@ -376,6 +390,19 @@ public class QuotaTableUtil {
     return p;
   }
 
+  /**
+   * Creates a {@link Put} to persist the current size of the {@code snapshot} with respect to
+   * the given {@code table}.
+   */
+  public static Put createPutSnapshotSize(TableName tableName, String snapshot, long size) {
+    // We just need a pb message with some `long usage`, so we can just reuse the
+    // SpaceQuotaSnapshot message instead of creating a new one.
+    Put p = new Put(getTableRowKey(tableName));
+    p.addColumn(QUOTA_FAMILY_USAGE, getSnapshotSizeQualifier(snapshot), 
+        org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceQuotaSnapshot
+            .newBuilder().setUsage(size).build().toByteArray());
+    return p;
+  }
 
   /* =========================================================================
    *  Space quota status RPC helpers
@@ -618,5 +645,16 @@ public class QuotaTableUtil {
       throw new IllegalArgumentException("Protobuf SpaceQuota does not have violation policy.");
     }
     return ProtobufUtil.toViolationPolicy(proto.getViolationPolicy());
+  }
+
+  protected static byte[] getSnapshotSizeQualifier(String snapshotName) {
+    return Bytes.add(QUOTA_SNAPSHOT_SIZE_QUALIFIER, Bytes.toBytes(snapshotName));
+  }
+
+  protected static long extractSnapshotSize(
+      byte[] data, int offset, int length) throws InvalidProtocolBufferException {
+    ByteString byteStr = UnsafeByteOperations.unsafeWrap(data, offset, length);
+    return org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceQuotaSnapshot
+        .parseFrom(byteStr).getUsage();
   }
 }

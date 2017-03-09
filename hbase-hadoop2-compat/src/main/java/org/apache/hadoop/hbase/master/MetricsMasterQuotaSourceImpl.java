@@ -35,6 +35,7 @@ public class MetricsMasterQuotaSourceImpl extends BaseSourceImpl implements Metr
   private final MutableGaugeLong namespacesViolatingQuotasGauge;
   private final MutableGaugeLong regionSpaceReportsGauge;
   private final MetricHistogram quotaObserverTimeHisto;
+  private final MetricHistogram snapshotObserverTimeHisto;
 
   public MetricsMasterQuotaSourceImpl(MetricsMasterWrapper wrapper) {
     this(METRICS_NAME, METRICS_DESCRIPTION, METRICS_CONTEXT, METRICS_JMX_CONTEXT, wrapper);
@@ -57,6 +58,8 @@ public class MetricsMasterQuotaSourceImpl extends BaseSourceImpl implements Metr
 
     quotaObserverTimeHisto = getMetricsRegistry().newTimeHistogram(
         QUOTA_OBSERVER_CHORE_TIME_NAME, QUOTA_OBSERVER_CHORE_TIME_DESC);
+    snapshotObserverTimeHisto = getMetricsRegistry().newTimeHistogram(
+        SNAPSHOT_OBSERVER_CHORE_TIME_NAME, SNAPSHOT_OBSERVER_CHORE_TIME_DESC);
   }
 
   @Override
@@ -82,6 +85,11 @@ public class MetricsMasterQuotaSourceImpl extends BaseSourceImpl implements Metr
   @Override
   public void incrementSpaceQuotaObserverChoreTime(long time) {
     quotaObserverTimeHisto.add(time);
+  }
+
+  @Override
+  public void incrementSnapshotObserverChoreTime(long time) {
+    snapshotObserverTimeHisto.add(time);
   }
 
   @Override

@@ -133,6 +133,7 @@ import org.apache.hadoop.hbase.procedure2.store.wal.WALProcedureStore;
 import org.apache.hadoop.hbase.quotas.MasterQuotaManager;
 import org.apache.hadoop.hbase.quotas.QuotaObserverChore;
 import org.apache.hadoop.hbase.quotas.QuotaUtil;
+import org.apache.hadoop.hbase.quotas.SnapshotQuotaObserverChore;
 import org.apache.hadoop.hbase.quotas.SpaceQuotaSnapshotNotifier;
 import org.apache.hadoop.hbase.quotas.SpaceQuotaSnapshotNotifierFactory;
 import org.apache.hadoop.hbase.regionserver.DefaultStoreEngine;
@@ -377,6 +378,7 @@ public class HMaster extends HRegionServer implements MasterServices {
   private volatile MasterQuotaManager quotaManager;
   private SpaceQuotaSnapshotNotifier spaceQuotaSnapshotNotifier;
   private QuotaObserverChore quotaObserverChore;
+  private SnapshotQuotaObserverChore snapshotQuotaChore;
 
   private ProcedureExecutor<MasterProcedureEnv> procedureExecutor;
   private WALProcedureStore procedureStore;
@@ -872,6 +874,10 @@ public class HMaster extends HRegionServer implements MasterServices {
       this.quotaObserverChore = new QuotaObserverChore(this, getMasterMetrics());
       // Start the chore to read the region FS space reports and act on them
       getChoreService().scheduleChore(quotaObserverChore);
+
+      this.snapshotQuotaChore = new SnapshotQuotaObserverChore(this, getMasterMetrics());
+      // Start the chore to read snapshots and add their usage to table/NS quotas
+      getChoreService().scheduleChore(snapshotQuotaChore);
     }
 
     // clear the dead servers with same host name and port of online server because we are not
@@ -1165,6 +1171,9 @@ public class HMaster extends HRegionServer implements MasterServices {
     }
     if (this.quotaObserverChore != null) {
       quotaObserverChore.cancel();
+    }
+    if (this.snapshotQuotaChore != null) {
+      snapshotQuotaChore.cancel();
     }
   }
 
@@ -3291,6 +3300,10 @@ public class HMaster extends HRegionServer implements MasterServices {
 
   public QuotaObserverChore getQuotaObserverChore() {
     return this.quotaObserverChore;
+  }
+
+  public SnapshotQuotaObserverChore getSnapshotQuotaChore() {
+    return this.snapshotQuotaChore;
   }
 
   public SpaceQuotaSnapshotNotifier getSpaceQuotaSnapshotNotifier() {

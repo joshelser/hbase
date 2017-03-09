@@ -101,4 +101,8 @@ public class MetricsMaster {
   public void incrementQuotaObserverTime(final long executionTime) {
     masterQuotaSource.incrementSpaceQuotaObserverChoreTime(executionTime);
   }
+
+  public void incrementSnapshotObserverTime(final long executionTime) {
+    masterQuotaSource.incrementSnapshotObserverChoreTime(executionTime);
+  }
 }

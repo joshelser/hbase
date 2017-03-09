@@ -79,6 +79,7 @@ import org.junit.rules.TestName;
 public class TestSpaceQuotas {
   private static final Log LOG = LogFactory.getLog(TestSpaceQuotas.class);
   private static final HBaseTestingUtility TEST_UTIL = new HBaseTestingUtility();
+  // Global for all tests in the class
   private static final AtomicLong COUNTER = new AtomicLong(0);
   private static final int NUM_RETRIES = 10;
 
@@ -89,14 +90,7 @@ public class TestSpaceQuotas {
   @BeforeClass
   public static void setUp() throws Exception {
     Configuration conf = TEST_UTIL.getConfiguration();
-    // Increase the frequency of some of the chores for responsiveness of the test
-    conf.setInt(FileSystemUtilizationChore.FS_UTILIZATION_CHORE_DELAY_KEY, 1000);
-    conf.setInt(FileSystemUtilizationChore.FS_UTILIZATION_CHORE_PERIOD_KEY, 1000);
-    conf.setInt(QuotaObserverChore.QUOTA_OBSERVER_CHORE_DELAY_KEY, 1000);
-    conf.setInt(QuotaObserverChore.QUOTA_OBSERVER_CHORE_PERIOD_KEY, 1000);
-    conf.setInt(SpaceQuotaRefresherChore.POLICY_REFRESHER_CHORE_DELAY_KEY, 1000);
-    conf.setInt(SpaceQuotaRefresherChore.POLICY_REFRESHER_CHORE_PERIOD_KEY, 1000);
-    conf.setBoolean(QuotaUtil.QUOTA_CONF_KEY, true);
+    SpaceQuotaHelperForTests.updateConfigForQuotas(conf);
     TEST_UTIL.startMiniCluster(1);
   }
 
@@ -107,30 +101,8 @@ public class TestSpaceQuotas {
 
   @Before
   public void removeAllQuotas() throws Exception {
-    final Connection conn = TEST_UTIL.getConnection();
-    // Wait for the quota table to be created
-    if (!conn.getAdmin().tableExists(QuotaUtil.QUOTA_TABLE_NAME)) {
-      do {
-        LOG.debug("Quota table does not yet exist");
-        Thread.sleep(1000);
-      } while (!conn.getAdmin().tableExists(QuotaUtil.QUOTA_TABLE_NAME));
-    } else {
-      // Or, clean up any quotas from previous test runs.
-      QuotaRetriever scanner = QuotaRetriever.open(TEST_UTIL.getConfiguration());
-      for (QuotaSettings quotaSettings : scanner) {
-        final String namespace = quotaSettings.getNamespace();
-        final TableName tableName = quotaSettings.getTableName();
-        if (null != namespace) {
-          LOG.debug("Deleting quota for namespace: " + namespace);
-          QuotaUtil.deleteNamespaceQuota(conn, namespace);
-        } else {
-          assert null != tableName;
-          LOG.debug("Deleting quota for table: "+ tableName);
-          QuotaUtil.deleteTableQuota(conn, tableName);
-        }
-      }
-    }
     helper = new SpaceQuotaHelperForTests(TEST_UTIL, testName, COUNTER);
+    helper.removeAllQuotas();
   }
 
   @Test

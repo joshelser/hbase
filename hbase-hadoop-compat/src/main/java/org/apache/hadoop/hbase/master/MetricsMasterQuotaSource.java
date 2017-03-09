@@ -39,6 +39,9 @@ public interface MetricsMasterQuotaSource extends BaseSource {
   String QUOTA_OBSERVER_CHORE_TIME_NAME = "quotaObserverChoreTime";
   String QUOTA_OBSERVER_CHORE_TIME_DESC =
       "Histogram for the time in millis for the QuotaObserverChore";
+  String SNAPSHOT_OBSERVER_CHORE_TIME_NAME = "snapshotObserverChoreTime";
+  String SNAPSHOT_OBSERVER_CHORE_TIME_DESC =
+      "Histogram for the time in millis for the SnapshotQuotaObserverChore";
   String TABLE_QUOTA_USAGE_NAME = "tableSpaceQuotaOverview";
   String TABLE_QUOTA_USAGE_DESC = "A JSON summary of the usage of all tables with space quotas";
   String NS_QUOTA_USAGE_NAME = "namespaceSpaceQuotaOverview";
@@ -72,4 +75,10 @@ public interface MetricsMasterQuotaSource extends BaseSource {
    * which runs periodically.
    */
   void incrementSpaceQuotaObserverChoreTime(long time);
+
+  /**
+   * Updates the metric tracking the amount of time taken by the {@code SpaceQuotaObserverChore}
+   * which runs periodically.
+   */
+  void incrementSnapshotObserverChoreTime(long time);
 }
