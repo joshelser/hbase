@@ -1885,6 +1885,22 @@ at the same time and that fewer scans can be executed at the same time. A value 
 `0.9` will give more queue/handlers to scans, so the number of scans executed will
 increase and the number of gets will decrease.
 
+[[ops.space.quota.deletion]]
+=== Automatic Space Quota Deletion
+
+By default, if a table or namespace is deleted that has a space quota, the quota itself is
+not also deleted. In some cases, it may be desirable for the space quota to be automatically deleted.
+In these cases, the user may configure the MasterSpaceQuotaObserver to delete any space quota
+automatically in hbase-site.xml.
+
+[source,java]
+----
+
+  <property>
+    <name>hbase.coprocessor.master.classes</name>
+    <value>...,org.apache.hadoop.hbase.quotas.MasterSpaceQuotaObserver</value>
+  </property>
+----
 
 [[ops.backup]]
 == HBase Backup
