@@ -173,6 +173,11 @@ public class TestSpaceQuotasWithSnapshots {
         return expectedFinalSize == snapshot.getUsage();
       }
     });
+
+    Map<String,Long> snapshotSizes = QuotaTableUtil.getObservedSnapshotSizes(conn);
+    Long size = snapshotSizes.get(snapshot1);
+    assertNotNull("Did not observe the size of the snapshot", size);
+    assertEquals(actualInitialSize, size.longValue());
   }
 
   @Test
@@ -265,6 +270,11 @@ public class TestSpaceQuotasWithSnapshots {
         return expectedFinalSize == snapshot.getUsage();
       }
     });
+
+    Map<String,Long> snapshotSizes = QuotaTableUtil.getObservedSnapshotSizes(conn);
+    Long size = snapshotSizes.get(snapshot1);
+    assertNotNull("Did not observe the size of the snapshot", size);
+    assertEquals(actualInitialSize, size.longValue());
   }
 
   @Test
