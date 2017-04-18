@@ -517,7 +517,6 @@ public class QuotaObserverChore extends ScheduledChore {
    * Fetches the {@link SpaceQuotaSnapshot} for the given table.
    */
   SpaceQuotaSnapshot getTableQuotaSnapshot(TableName table) {
-    // TODO Can one instance of a Chore be executed concurrently?
     SpaceQuotaSnapshot state = this.tableQuotaSnapshots.get(table);
     if (null == state) {
       // No tracked state implies observance.
@@ -537,7 +536,6 @@ public class QuotaObserverChore extends ScheduledChore {
    * Fetches the {@link SpaceQuotaSnapshot} for the given namespace from this chore.
    */
   SpaceQuotaSnapshot getNamespaceQuotaSnapshot(String namespace) {
-    // TODO Can one instance of a Chore be executed concurrently?
     SpaceQuotaSnapshot state = this.namespaceQuotaSnapshots.get(namespace);
     if (null == state) {
       // No tracked state implies observance.
