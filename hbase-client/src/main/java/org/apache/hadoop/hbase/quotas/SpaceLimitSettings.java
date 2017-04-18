@@ -28,7 +28,7 @@ import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceLimitR
 import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.SpaceQuota;
 
 /**
- * A {@link QuotaSettings} implementation for implementing filesystem-use quotas.
+ * A {@link QuotaSettings} implementation for configuring filesystem-use quotas.
  */
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
@@ -44,7 +44,10 @@ class SpaceLimitSettings extends QuotaSettings {
     proto = buildProtoAddQuota(sizeLimit, Objects.requireNonNull(violationPolicy));
   }
 
-  SpaceLimitSettings(TableName tableName, boolean remove) {
+  /**
+   * Constructs a {@code SpaceLimitSettings} to remove a space quota on the given {@code tableName}.
+   */
+  SpaceLimitSettings(TableName tableName) {
     super(null, Objects.requireNonNull(tableName), null);
     if (!remove) {
       throw new IllegalArgumentException("A value of 'false' for removing a quota makes no sense");
@@ -60,7 +63,10 @@ class SpaceLimitSettings extends QuotaSettings {
     proto = buildProtoAddQuota(sizeLimit, Objects.requireNonNull(violationPolicy));
   }
 
-  SpaceLimitSettings(String namespace, boolean remove) {
+  /**
+   * Constructs a {@code SpaceLimitSettings} to remove a space quota on the given {@code namespace}.
+   */
+  SpaceLimitSettings(String namespace) {
     super(null, null, Objects.requireNonNull(namespace));
     if (!remove) {
       throw new IllegalArgumentException("A value of 'false' for removing a quota makes no sense");

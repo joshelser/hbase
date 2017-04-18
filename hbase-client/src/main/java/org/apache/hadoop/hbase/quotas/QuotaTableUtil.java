@@ -398,7 +398,8 @@ public class QuotaTableUtil {
   }
 
   /**
-   * Creates a {@link Put} to enable the given <code>policy</code> on the <code>table</code>.
+   * Creates a {@link Put} to store the given {@code snapshot} for the given {@code tableName} in
+   * the quota table.
    */
   public static Put createPutSpaceSnapshot(TableName tableName, SpaceQuotaSnapshot snapshot) {
     Put p = new Put(getTableRowKey(tableName));

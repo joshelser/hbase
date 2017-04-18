@@ -27,6 +27,10 @@ import org.apache.hadoop.metrics2.MetricsRecordBuilder;
 import org.apache.hadoop.metrics2.lib.Interns;
 import org.apache.hadoop.metrics2.lib.MutableGaugeLong;
 
+/**
+ * Implementation of {@link MetricsMasterQuotaSource} which writes the values passed in via the
+ * interface to the metrics backend.
+ */
 @InterfaceAudience.Private
 public class MetricsMasterQuotaSourceImpl extends BaseSourceImpl implements MetricsMasterQuotaSource {
   private final MetricsMasterWrapper wrapper;

@@ -36,7 +36,8 @@ public class SpaceQuotaSnapshot {
 
   /**
    * Encapsulates the state of a quota on a table. The quota may or may not be in violation.
-   * If it is in violation, there will be a non-null violation policy.
+   * If the quota is not in violation, the violation may be null. If the quota is in violation,
+   * there is guaranteed to be a non-null violation policy.
    */
   @InterfaceAudience.Private
   public static class SpaceQuotaStatus {
@@ -44,6 +45,14 @@ public class SpaceQuotaSnapshot {
     final SpaceViolationPolicy policy;
     final boolean inViolation;
 
+    /**
+     * Constructs a {@code SpaceQuotaSnapshot} which is in violation of the provided {@code policy}.
+     *
+     * Use {@link #notInViolation()} to obtain an instance of this class for the cases when the
+     * quota is not in violation.
+     *
+     * @param policy The non-null policy being violated.
+     */
     public SpaceQuotaStatus(SpaceViolationPolicy policy) {
       this.policy = Objects.requireNonNull(policy);
       this.inViolation = true;
@@ -55,16 +64,15 @@ public class SpaceQuotaSnapshot {
     }
 
     /**
-     * The violation policy which may be null. Is guaranteed to be non-null if
-     * {@link #isInViolation()} is <code>true</code>, and <code>false</code>
-     * otherwise.
+     * Returns the violation policy, which may be null. It is guaranteed to be non-null if
+     * {@link #isInViolation()} is {@code true}, but may be null otherwise.
      */
     public SpaceViolationPolicy getPolicy() {
       return policy;
     }
 
     /**
-     * <code>true</code> if the quota is being violated, <code>false</code> otherwise.
+     * @return {@code true} if the quota is being violated, {@code false} otherwise.
      */
     public boolean isInViolation() {
       return inViolation;

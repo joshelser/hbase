@@ -504,7 +504,7 @@ public class QuotaObserverChore extends ScheduledChore {
 
   /**
    * Returns an unmodifiable view over the current {@link SpaceQuotaSnapshot} objects
-   * for each HBase table with a quota.
+   * for each HBase table with a quota defined.
    */
   public Map<TableName,SpaceQuotaSnapshot> getTableQuotaSnapshots() {
     return readOnlyTableQuotaSnapshots;
@@ -512,7 +512,7 @@ public class QuotaObserverChore extends ScheduledChore {
 
   /**
    * Returns an unmodifiable view over the current {@link SpaceQuotaSnapshot} objects
-   * for each HBase namespace with a quota.
+   * for each HBase namespace with a quota defined.
    */
   public Map<String,SpaceQuotaSnapshot> getNamespaceQuotaSnapshots() {
     return readOnlyNamespaceSnapshots;
@@ -539,7 +539,7 @@ public class QuotaObserverChore extends ScheduledChore {
   }
 
   /**
-   * Fetches the {@link SpaceQuotaSnapshot} for the given namespace.
+   * Fetches the {@link SpaceQuotaSnapshot} for the given namespace from this chore.
    */
   SpaceQuotaSnapshot getNamespaceQuotaSnapshot(String namespace) {
     // TODO Can one instance of a Chore be executed concurrently?
@@ -552,7 +552,7 @@ public class QuotaObserverChore extends ScheduledChore {
   }
 
   /**
-   * Stores the quota state for the given namespace.
+   * Stores the given {@code snapshot} for the given {@code namespace} in this chore.
    */
   void setNamespaceQuotaSnapshot(String namespace, SpaceQuotaSnapshot snapshot) {
     this.namespaceQuotaSnapshots.put(namespace, snapshot);
@@ -562,7 +562,8 @@ public class QuotaObserverChore extends ScheduledChore {
    * Extracts the period for the chore from the configuration.
    *
    * @param conf The configuration object.
-   * @return The configured chore period or the default value.
+   * @return The configured chore period or the default value in the given timeunit.
+   * @see #getTimeUnit(Configuration)
    */
   static int getPeriod(Configuration conf) {
     return conf.getInt(QUOTA_OBSERVER_CHORE_PERIOD_KEY,
@@ -573,7 +574,8 @@ public class QuotaObserverChore extends ScheduledChore {
    * Extracts the initial delay for the chore from the configuration.
    *
    * @param conf The configuration object.
-   * @return The configured chore initial delay or the default value.
+   * @return The configured chore initial delay or the default value in the given timeunit.
+   * @see #getTimeUnit(Configuration)
    */
   static long getInitialDelay(Configuration conf) {
     return conf.getLong(QUOTA_OBSERVER_CHORE_DELAY_KEY,
@@ -606,8 +608,8 @@ public class QuotaObserverChore extends ScheduledChore {
   }
 
   /**
-   * A container which encapsulates the tables which have a table quota and the tables which
-   * are contained in a namespace which have a namespace quota.
+   * A container which encapsulates the tables that have either a table quota or are contained in a
+   * namespace which have a namespace quota.
    */
   static class TablesWithQuotas {
     private final Set<TableName> tablesWithTableQuotas = new HashSet<>();
