@@ -37,6 +37,7 @@ import org.apache.hadoop.hbase.Waiter.Predicate;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.master.HMaster;
 import org.apache.hadoop.hbase.quotas.SpaceQuotaSnapshot.SpaceQuotaStatus;
+import org.apache.hadoop.hbase.quotas.policies.MissingSnapshotViolationPolicyEnforcement;
 import org.apache.hadoop.hbase.regionserver.HRegionServer;
 import org.apache.hadoop.hbase.testclassification.MediumTests;
 import org.junit.AfterClass;
@@ -177,6 +178,10 @@ public class TestQuotaStatusRPCs {
       public boolean evaluate() throws Exception {
         ActivePolicyEnforcement enforcements = manager.getActiveEnforcements();
         SpaceViolationPolicyEnforcement enforcement = enforcements.getPolicyEnforcement(tn);
+        // Signifies that we're waiting on the quota snapshot to be fetched
+        if (enforcement instanceof MissingSnapshotViolationPolicyEnforcement) {
+          return false;
+        }
         return enforcement.getQuotaSnapshot().getQuotaStatus().isInViolation();
       }
     });

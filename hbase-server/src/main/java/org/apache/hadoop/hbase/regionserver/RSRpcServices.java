@@ -2169,7 +2169,8 @@ public class RSRpcServices implements HBaseRPCErrorHandler,
       // Check to see if this bulk load would exceed the space quota for this table
       if (QuotaUtil.isQuotaEnabled(getConfiguration())) {
         ActivePolicyEnforcement activeSpaceQuotas = getSpaceQuotaManager().getActiveEnforcements();
-        SpaceViolationPolicyEnforcement enforcement = activeSpaceQuotas.getPolicyEnforcement(region);
+        SpaceViolationPolicyEnforcement enforcement = activeSpaceQuotas.getPolicyEnforcement(
+            region);
         if (null != enforcement) {
           // Bulk loads must still be atomic. We must enact all or none.
           List<String> filePaths = new ArrayList<>(request.getFamilyPathCount());

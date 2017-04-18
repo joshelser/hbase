@@ -56,7 +56,7 @@ import org.apache.hadoop.hbase.client.SecureBulkLoadClient;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.ipc.RpcControllerFactory;
 import org.apache.hadoop.hbase.master.HMaster;
-import org.apache.hadoop.hbase.quotas.policies.BulkLoadVerifyingViolationPolicyEnforcement;
+import org.apache.hadoop.hbase.quotas.policies.DefaultViolationPolicyEnforcement;
 import org.apache.hadoop.hbase.regionserver.HRegionServer;
 import org.apache.hadoop.hbase.regionserver.TestHRegionServerBulkLoad;
 import org.apache.hadoop.hbase.security.AccessDeniedException;
@@ -305,7 +305,7 @@ public class TestSpaceQuotas {
     SpaceViolationPolicyEnforcement enforcement = activePolicies.getPolicyEnforcement(tn);
     assertTrue(
         "Expected to find Noop policy, but got " + enforcement.getClass().getSimpleName(),
-        enforcement instanceof BulkLoadVerifyingViolationPolicyEnforcement);
+        enforcement instanceof DefaultViolationPolicyEnforcement);
 
     // Should generate two files, each of which is over 25KB each
     ClientServiceCallable<Void> callable = generateFileToLoad(tn, 2, 500);
