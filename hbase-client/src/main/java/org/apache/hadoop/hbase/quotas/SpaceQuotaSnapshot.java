@@ -112,14 +112,14 @@ public class SpaceQuotaSnapshot {
       QuotaProtos.SpaceQuotaStatus.Builder builder = QuotaProtos.SpaceQuotaStatus.newBuilder();
       builder.setInViolation(status.inViolation);
       if (status.isInViolation()) {
-        builder.setPolicy(ProtobufUtil.toProtoViolationPolicy(status.getPolicy()));
+        builder.setViolationPolicy(ProtobufUtil.toProtoViolationPolicy(status.getPolicy()));
       }
       return builder.build();
     }
 
     public static SpaceQuotaStatus toStatus(QuotaProtos.SpaceQuotaStatus proto) {
       if (proto.getInViolation()) {
-        return new SpaceQuotaStatus(ProtobufUtil.toViolationPolicy(proto.getPolicy()));
+        return new SpaceQuotaStatus(ProtobufUtil.toViolationPolicy(proto.getViolationPolicy()));
       } else {
         return NOT_IN_VIOLATION;
       }
@@ -181,14 +181,14 @@ public class SpaceQuotaSnapshot {
 
   // ProtobufUtil is in hbase-client, and this doesn't need to be public.
   public static SpaceQuotaSnapshot toSpaceQuotaSnapshot(QuotaProtos.SpaceQuotaSnapshot proto) {
-    return new SpaceQuotaSnapshot(SpaceQuotaStatus.toStatus(proto.getStatus()),
-        proto.getUsage(), proto.getLimit());
+    return new SpaceQuotaSnapshot(SpaceQuotaStatus.toStatus(proto.getQuotaStatus()),
+        proto.getQuotaUsage(), proto.getQuotaLimit());
   }
 
   public static QuotaProtos.SpaceQuotaSnapshot toProtoSnapshot(SpaceQuotaSnapshot snapshot) {
     return QuotaProtos.SpaceQuotaSnapshot.newBuilder()
-        .setStatus(SpaceQuotaStatus.toProto(snapshot.getQuotaStatus()))
-        .setUsage(snapshot.getUsage()).setLimit(snapshot.getLimit()).build();
+        .setQuotaStatus(SpaceQuotaStatus.toProto(snapshot.getQuotaStatus()))
+        .setQuotaUsage(snapshot.getUsage()).setQuotaLimit(snapshot.getLimit()).build();
   }
 
   /**

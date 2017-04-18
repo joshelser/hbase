@@ -2036,7 +2036,8 @@ public class MasterRpcServices extends RSRpcServices
       MasterQuotaManager quotaManager = this.master.getMasterQuotaManager();
       final long now = EnvironmentEdgeManager.currentTime();
       for (RegionSpaceUse report : request.getSpaceUseList()) {
-        quotaManager.addRegionSize(HRegionInfo.convert(report.getRegion()), report.getSize(), now);
+        quotaManager.addRegionSize(HRegionInfo.convert(
+            report.getRegionInfo()), report.getRegionSize(), now);
       }
       return RegionSpaceUseReportResponse.newBuilder().build();
     } catch (Exception e) {
