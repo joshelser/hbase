@@ -349,6 +349,6 @@ public class QuotaSettingsFactory {
    * @return A {@link QuotaSettings} object.
    */
   public static QuotaSettings removeNamespaceSpaceLimit(String namespace) {
-    return new SpaceLimitSettings(namespace, true);
+    return new SpaceLimitSettings(namespace);
   }
 }
