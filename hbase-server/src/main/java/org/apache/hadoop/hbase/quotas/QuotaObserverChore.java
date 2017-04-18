@@ -451,9 +451,8 @@ public class QuotaObserverChore extends ScheduledChore {
    */
   TablesWithQuotas fetchAllTablesWithQuotasDefined() throws IOException {
     final Scan scan = QuotaTableUtil.makeScan(null);
-    final QuotaRetriever scanner = new QuotaRetriever();
     final TablesWithQuotas tablesWithQuotas = new TablesWithQuotas(conn, conf);
-    try {
+    try (final QuotaRetriever scanner = new QuotaRetriever()) {
       scanner.init(conn, scan);
       for (QuotaSettings quotaSettings : scanner) {
         // Only one of namespace and tablename should be 'null'
@@ -485,10 +484,6 @@ public class QuotaObserverChore extends ScheduledChore {
         }
       }
       return tablesWithQuotas;
-    } finally {
-      if (null != scanner) {
-        scanner.close();
-      }
     }
   }
 
