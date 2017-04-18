@@ -49,9 +49,6 @@ class SpaceLimitSettings extends QuotaSettings {
    */
   SpaceLimitSettings(TableName tableName) {
     super(null, Objects.requireNonNull(tableName), null);
-    if (!remove) {
-      throw new IllegalArgumentException("A value of 'false' for removing a quota makes no sense");
-    }
     proto = buildProtoRemoveQuota();
   }
 
@@ -68,9 +65,6 @@ class SpaceLimitSettings extends QuotaSettings {
    */
   SpaceLimitSettings(String namespace) {
     super(null, null, Objects.requireNonNull(namespace));
-    if (!remove) {
-      throw new IllegalArgumentException("A value of 'false' for removing a quota makes no sense");
-    }
     proto = buildProtoRemoveQuota();
   }
 

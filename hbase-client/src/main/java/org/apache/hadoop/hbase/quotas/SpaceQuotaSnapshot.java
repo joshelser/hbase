@@ -54,8 +54,8 @@ public class SpaceQuotaSnapshot {
      * @param policy The non-null policy being violated.
      */
     public SpaceQuotaStatus(SpaceViolationPolicy policy) {
-      this.policy = Objects.requireNonNull(policy);
-      this.inViolation = true;
+      // If the caller is instantiating a status, the policy must be non-null
+      this (Objects.requireNonNull(policy), true);
     }
 
     private SpaceQuotaStatus(SpaceViolationPolicy policy, boolean inViolation) {

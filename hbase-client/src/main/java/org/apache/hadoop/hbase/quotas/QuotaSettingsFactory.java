@@ -323,7 +323,7 @@ public class QuotaSettingsFactory {
    * @return A {@link QuotaSettings} object.
    */
   public static QuotaSettings removeTableSpaceLimit(TableName tableName) {
-    return new SpaceLimitSettings(tableName, true);
+    return new SpaceLimitSettings(tableName);
   }
 
   /**
