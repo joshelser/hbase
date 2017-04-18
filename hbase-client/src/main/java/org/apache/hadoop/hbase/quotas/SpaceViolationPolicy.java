@@ -43,5 +43,5 @@ public enum SpaceViolationPolicy {
   /**
    * Disallows any updates (but allows deletes and compactions) on the table(s).
    */
-  NO_INSERTS,
+  NO_INSERTS;
 }
