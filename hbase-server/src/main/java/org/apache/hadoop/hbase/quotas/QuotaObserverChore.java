@@ -136,7 +136,7 @@ public class QuotaObserverChore extends ScheduledChore {
       }
       long start = System.nanoTime();
       _chore();
-      if (null != metrics) {
+      if (metrics != null) {
         metrics.incrementQuotaObserverTime((System.nanoTime() - start) / 1_000_000);
       }
     } catch (IOException e) {
@@ -152,7 +152,7 @@ public class QuotaObserverChore extends ScheduledChore {
       LOG.trace("Found following tables with quotas: " + tablesWithQuotas);
     }
 
-    if (null != metrics) {
+    if (metrics != null) {
       // Set the number of namespaces and tables with quotas defined
       metrics.setNumSpaceQuotas(tablesWithQuotas.getTableQuotaTables().size()
           + tablesWithQuotas.getNamespacesWithQuotas().size());
@@ -170,7 +170,7 @@ public class QuotaObserverChore extends ScheduledChore {
     // Create the stores to track table and namespace snapshots
     initializeSnapshotStores(reportedRegionSpaceUse);
     // Report the number of (non-expired) region size reports
-    if (null != metrics) {
+    if (metrics != null) {
       metrics.setNumRegionSizeReports(reportedRegionSpaceUse.size());
     }
 
@@ -216,12 +216,12 @@ public class QuotaObserverChore extends ScheduledChore {
 
   void initializeSnapshotStores(Map<HRegionInfo,Long> regionSizes) {
     Map<HRegionInfo,Long> immutableRegionSpaceUse = Collections.unmodifiableMap(regionSizes);
-    if (null == tableSnapshotStore) {
+    if (tableSnapshotStore == null) {
       tableSnapshotStore = new TableQuotaSnapshotStore(conn, this, immutableRegionSpaceUse);
     } else {
       tableSnapshotStore.setRegionUsage(immutableRegionSpaceUse);
     }
-    if (null == namespaceSnapshotStore) {
+    if (namespaceSnapshotStore == null) {
       namespaceSnapshotStore = new NamespaceQuotaSnapshotStore(
           conn, this, immutableRegionSpaceUse);
     } else {
@@ -239,7 +239,7 @@ public class QuotaObserverChore extends ScheduledChore {
     long numTablesInViolation = 0L;
     for (TableName table : tablesWithTableQuotas) {
       final SpaceQuota spaceQuota = tableSnapshotStore.getSpaceQuota(table);
-      if (null == spaceQuota) {
+      if (spaceQuota == null) {
         if (LOG.isDebugEnabled()) {
           LOG.debug("Unexpectedly did not find a space quota for " + table
               + ", maybe it was recently deleted.");
@@ -259,7 +259,7 @@ public class QuotaObserverChore extends ScheduledChore {
       }
     }
     // Report the number of tables in violation
-    if (null != metrics) {
+    if (metrics != null) {
       metrics.setNumTableInSpaceQuotaViolation(numTablesInViolation);
     }
   }
@@ -281,7 +281,7 @@ public class QuotaObserverChore extends ScheduledChore {
     for (String namespace : namespacesWithQuotas) {
       // Get the quota definition for the namespace
       final SpaceQuota spaceQuota = namespaceSnapshotStore.getSpaceQuota(namespace);
-      if (null == spaceQuota) {
+      if (spaceQuota == null) {
         if (LOG.isDebugEnabled()) {
           LOG.debug("Could not get Namespace space quota for " + namespace
               + ", maybe it was recently deleted.");
@@ -303,7 +303,7 @@ public class QuotaObserverChore extends ScheduledChore {
     }
 
     // Report the number of namespaces in violation
-    if (null != metrics) {
+    if (metrics != null) {
       metrics.setNumNamespacesInSpaceQuotaViolation(numNamespacesInViolation);
     }
   }
@@ -462,11 +462,10 @@ public class QuotaObserverChore extends ScheduledChore {
           continue;
         }
 
-        if (null != namespace) {
-          assert null == tableName;
+        if (namespace != null) {
+          assert tableName == null;
           // Collect all of the tables in the namespace
-          TableName[] tablesInNS = conn.getAdmin()
-              .listTableNamesByNamespace(namespace);
+          TableName[] tablesInNS = conn.getAdmin().listTableNamesByNamespace(namespace);
           for (TableName tableUnderNs : tablesInNS) {
             if (LOG.isTraceEnabled()) {
               LOG.trace("Adding " + tableUnderNs + " under " +  namespace
@@ -475,7 +474,7 @@ public class QuotaObserverChore extends ScheduledChore {
             tablesWithQuotas.addNamespaceQuotaTable(tableUnderNs);
           }
         } else {
-          assert null != tableName;
+          assert tableName != null;
           if (LOG.isTraceEnabled()) {
             LOG.trace("Adding " + tableName + " as having table quota.");
           }
@@ -518,7 +517,7 @@ public class QuotaObserverChore extends ScheduledChore {
    */
   SpaceQuotaSnapshot getTableQuotaSnapshot(TableName table) {
     SpaceQuotaSnapshot state = this.tableQuotaSnapshots.get(table);
-    if (null == state) {
+    if (state == null) {
       // No tracked state implies observance.
       return QuotaSnapshotStore.NO_QUOTA;
     }
@@ -537,7 +536,7 @@ public class QuotaObserverChore extends ScheduledChore {
    */
   SpaceQuotaSnapshot getNamespaceQuotaSnapshot(String namespace) {
     SpaceQuotaSnapshot state = this.namespaceQuotaSnapshots.get(namespace);
-    if (null == state) {
+    if (state == null) {
       // No tracked state implies observance.
       return QuotaSnapshotStore.NO_QUOTA;
     }
@@ -697,7 +696,7 @@ public class QuotaObserverChore extends ScheduledChore {
         }
         final int numRegionsInTable = getNumRegions(table);
         // If the table doesn't exist (no regions), bail out.
-        if (0 == numRegionsInTable) {
+        if (numRegionsInTable == 0) {
           if (LOG.isTraceEnabled()) {
             LOG.trace("Filtering " + table + " because no regions were reported");
           }
@@ -729,7 +728,7 @@ public class QuotaObserverChore extends ScheduledChore {
      */
     int getNumRegions(TableName table) throws IOException {
       List<HRegionInfo> regions = this.conn.getAdmin().getTableRegions(table);
-      if (null == regions) {
+      if (regions == null) {
         return 0;
       }
       return regions.size();

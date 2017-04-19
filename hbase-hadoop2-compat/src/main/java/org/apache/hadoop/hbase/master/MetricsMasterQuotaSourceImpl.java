@@ -91,11 +91,11 @@ public class MetricsMasterQuotaSourceImpl extends BaseSourceImpl implements Metr
   @Override
   public void getMetrics(MetricsCollector metricsCollector, boolean all) {
     MetricsRecordBuilder record = metricsCollector.addRecord(metricsRegistry.info());
-    if (null != wrapper) {
+    if (wrapper != null) {
       // Summarize the tables
       Map<String,Entry<Long,Long>> tableUsages = wrapper.getTableSpaceUtilization();
       String tableSummary = "[]";
-      if (null != tableUsages && !tableUsages.isEmpty()) {
+      if (tableUsages != null && !tableUsages.isEmpty()) {
         tableSummary = generateJsonQuotaSummary(tableUsages.entrySet(), "table");
       }
       record.tag(Interns.info(TABLE_QUOTA_USAGE_NAME, TABLE_QUOTA_USAGE_DESC), tableSummary);
@@ -103,7 +103,7 @@ public class MetricsMasterQuotaSourceImpl extends BaseSourceImpl implements Metr
       // Summarize the namespaces
       String nsSummary = "[]";
       Map<String,Entry<Long,Long>> namespaceUsages = wrapper.getNamespaceSpaceUtilization();
-      if (null != namespaceUsages && !namespaceUsages.isEmpty()) {
+      if (namespaceUsages != null && !namespaceUsages.isEmpty()) {
         nsSummary = generateJsonQuotaSummary(namespaceUsages.entrySet(), "namespace");
       }
       record.tag(Interns.info(NS_QUOTA_USAGE_NAME, NS_QUOTA_USAGE_DESC), nsSummary);

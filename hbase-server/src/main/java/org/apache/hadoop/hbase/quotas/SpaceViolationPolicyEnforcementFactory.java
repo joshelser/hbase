@@ -89,7 +89,7 @@ public class SpaceViolationPolicyEnforcementFactory {
    */
   public SpaceViolationPolicyEnforcement createWithoutViolation(
       RegionServerServices rss, TableName tableName, SpaceQuotaSnapshot snapshot) {
-    if (null == snapshot) {
+    if (snapshot == null) {
       // If we have no snapshot, this is equivalent to no quota for this table.
       // We should do use the (singleton instance) of this policy to do nothing.
       return MissingSnapshotViolationPolicyEnforcement.getInstance();

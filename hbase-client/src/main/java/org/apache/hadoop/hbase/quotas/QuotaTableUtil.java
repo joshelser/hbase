@@ -251,12 +251,12 @@ public class QuotaTableUtil {
   public static void extractQuotaSnapshot(
       Result result, Map<TableName,SpaceQuotaSnapshot> snapshots) {
     byte[] row = Objects.requireNonNull(result).getRow();
-    if (null == row) {
+    if (row == null) {
       throw new IllegalArgumentException("Provided result had a null row");
     }
     final TableName targetTableName = getTableFromRowKey(row);
     Cell c = result.getColumnLatestCell(QUOTA_FAMILY_USAGE, QUOTA_QUALIFIER_POLICY);
-    if (null == c) {
+    if (c == null) {
       throw new IllegalArgumentException("Result did not contain the expected column "
           + QUOTA_POLICY_COLUMN + ", " + result.toString());
     }

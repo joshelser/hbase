@@ -120,7 +120,7 @@ public class TestSpaceQuotas {
       for (QuotaSettings quotaSettings : scanner) {
         final String namespace = quotaSettings.getNamespace();
         final TableName tableName = quotaSettings.getTableName();
-        if (null != namespace) {
+        if (namespace != null) {
           LOG.debug("Deleting quota for namespace: " + namespace);
           QuotaUtil.deleteNamespaceQuota(conn, namespace);
         } else {
@@ -285,7 +285,7 @@ public class TestSpaceQuotas {
     Map<HRegionInfo,Long> regionSizes = getReportedSizesForTable(tn);
     while (true) {
       SpaceQuotaSnapshot snapshot = snapshots.get(tn);
-      if (null != snapshot && snapshot.getLimit() > 0) {
+      if (snapshot != null && snapshot.getLimit() > 0) {
         break;
       }
       LOG.debug(

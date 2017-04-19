@@ -2053,14 +2053,14 @@ public class MasterRpcServices extends RSRpcServices
       MasterQuotaManager quotaManager = this.master.getMasterQuotaManager();
       GetSpaceQuotaRegionSizesResponse.Builder builder =
           GetSpaceQuotaRegionSizesResponse.newBuilder();
-      if (null != quotaManager) {
+      if (quotaManager != null) {
         Map<HRegionInfo,Long> regionSizes = quotaManager.snapshotRegionSizes();
         Map<TableName,Long> regionSizesByTable = new HashMap<>();
         // Translate hregioninfo+long -> tablename+long
         for (Entry<HRegionInfo,Long> entry : regionSizes.entrySet()) {
           final TableName tableName = entry.getKey().getTable();
           Long prevSize = regionSizesByTable.get(tableName);
-          if (null == prevSize) {
+          if (prevSize == null) {
             prevSize = 0L;
           }
           regionSizesByTable.put(tableName, prevSize + entry.getValue());
@@ -2086,7 +2086,7 @@ public class MasterRpcServices extends RSRpcServices
       master.checkInitialized();
       QuotaObserverChore quotaChore = this.master.getQuotaObserverChore();
       GetQuotaStatesResponse.Builder builder = GetQuotaStatesResponse.newBuilder();
-      if (null != quotaChore) {
+      if (quotaChore != null) {
         // The "current" view of all tables with quotas
         Map<TableName, SpaceQuotaSnapshot> tableSnapshots = quotaChore.getTableQuotaSnapshots();
         for (Entry<TableName, SpaceQuotaSnapshot> entry : tableSnapshots.entrySet()) {

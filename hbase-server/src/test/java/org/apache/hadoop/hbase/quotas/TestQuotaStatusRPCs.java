@@ -133,7 +133,7 @@ public class TestQuotaStatusRPCs {
       @Override
       public boolean evaluate() throws Exception {
         SpaceQuotaSnapshot snapshot = manager.copyQuotaSnapshots().get(tn);
-        if (null == snapshot) {
+        if (snapshot == null) {
           return false;
         }
         return snapshot.getUsage() >= tableSize;
@@ -220,7 +220,7 @@ public class TestQuotaStatusRPCs {
       public boolean evaluate() throws Exception {
         SpaceQuotaSnapshot snapshot = QuotaTableUtil.getCurrentSnapshot(conn, tn);
         LOG.info("Table snapshot after initial ingest: " + snapshot);
-        if (null == snapshot) {
+        if (snapshot == null) {
           return false;
         }
         return snapshot.getLimit() == sizeLimit && snapshot.getUsage() > 0L;
@@ -234,7 +234,7 @@ public class TestQuotaStatusRPCs {
         SpaceQuotaSnapshot snapshot = QuotaTableUtil.getCurrentSnapshot(
             conn, tn.getNamespaceAsString());
         LOG.debug("Namespace snapshot after initial ingest: " + snapshot);
-        if (null == snapshot) {
+        if (snapshot == null) {
           return false;
         }
         nsUsage.set(snapshot.getUsage());
@@ -254,7 +254,7 @@ public class TestQuotaStatusRPCs {
       public boolean evaluate() throws Exception {
         SpaceQuotaSnapshot snapshot = QuotaTableUtil.getCurrentSnapshot(conn, tn);
         LOG.info("Table snapshot after second ingest: " + snapshot);
-        if (null == snapshot) {
+        if (snapshot == null) {
           return false;
         }
         return snapshot.getQuotaStatus().isInViolation();
@@ -267,7 +267,7 @@ public class TestQuotaStatusRPCs {
         SpaceQuotaSnapshot snapshot = QuotaTableUtil.getCurrentSnapshot(
             conn, tn.getNamespaceAsString());
         LOG.debug("Namespace snapshot after second ingest: " + snapshot);
-        if (null == snapshot) {
+        if (snapshot == null) {
           return false;
         }
         return snapshot.getUsage() > nsUsage.get() && !snapshot.getQuotaStatus().isInViolation();

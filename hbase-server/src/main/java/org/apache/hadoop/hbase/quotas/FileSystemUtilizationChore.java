@@ -81,7 +81,7 @@ public class FileSystemUtilizationChore extends ScheduledChore {
     Iterator<Region> oldRegionsToProcess = getLeftoverRegions();
     final Iterator<Region> iterator;
     final boolean processingLeftovers;
-    if (null == oldRegionsToProcess) {
+    if (oldRegionsToProcess == null) {
       iterator = onlineRegions.iterator();
       processingLeftovers = false;
     } else {

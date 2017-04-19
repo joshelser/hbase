@@ -85,7 +85,7 @@ public class RegionServerSpaceQuotaManager {
   }
 
   public synchronized void stop() {
-    if (null != spaceQuotaRefresher) {
+    if (spaceQuotaRefresher != null) {
       spaceQuotaRefresher.cancel();
       spaceQuotaRefresher = null;
     }
@@ -133,7 +133,7 @@ public class RegionServerSpaceQuotaManager {
     final Map<TableName, SpaceQuotaSnapshot> policies = new HashMap<>();
     for (Entry<TableName, SpaceViolationPolicyEnforcement> entry : enforcements.entrySet()) {
       final SpaceQuotaSnapshot snapshot = entry.getValue().getQuotaSnapshot();
-      if (null != snapshot) {
+      if (snapshot != null) {
         policies.put(entry.getKey(), snapshot);
       }
     }
@@ -184,7 +184,7 @@ public class RegionServerSpaceQuotaManager {
     // "Disables" the policy
     synchronized (enforcedPolicies) {
       SpaceViolationPolicyEnforcement enforcement = enforcedPolicies.remove(tableName);
-      if (null != enforcement) {
+      if (enforcement != null) {
         try {
           enforcement.disable();
         } catch (IOException e) {
@@ -205,7 +205,7 @@ public class RegionServerSpaceQuotaManager {
    */
   public boolean areCompactionsDisabled(TableName tableName) {
     SpaceViolationPolicyEnforcement enforcement = this.enforcedPolicies.get(Objects.requireNonNull(tableName));
-    if (null != enforcement) {
+    if (enforcement != null) {
       return enforcement.areCompactionsDisabled();
     }
     return false;

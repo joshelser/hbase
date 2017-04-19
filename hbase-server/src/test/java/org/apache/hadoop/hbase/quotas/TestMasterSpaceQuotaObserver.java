@@ -79,11 +79,11 @@ public class TestMasterSpaceQuotaObserver {
       for (QuotaSettings quotaSettings : scanner) {
         final String namespace = quotaSettings.getNamespace();
         final TableName tableName = quotaSettings.getTableName();
-        if (null != namespace) {
+        if (namespace != null) {
           LOG.debug("Deleting quota for namespace: " + namespace);
           QuotaUtil.deleteNamespaceQuota(conn, namespace);
         } else {
-          assert null != tableName;
+          assert tableName != null;
           LOG.debug("Deleting quota for table: "+ tableName);
           QuotaUtil.deleteTableQuota(conn, tableName);
         }

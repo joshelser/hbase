@@ -213,14 +213,14 @@ public class SpaceQuotaHelperForTests {
     for (Entry<TableName, QuotaSettings> entry : quotas.entries()) {
       SpaceLimitSettings settings = (SpaceLimitSettings) entry.getValue();
       TableName tn = entry.getKey();
-      if (null != settings.getTableName()) {
+      if (settings.getTableName() != null) {
         tablesWithTableQuota.add(tn);
       }
-      if (null != settings.getNamespace()) {
+      if (settings.getNamespace() != null) {
         tablesWithNamespaceQuota.add(tn);
       }
 
-      if (null == settings.getTableName() && null == settings.getNamespace()) {
+      if (settings.getTableName() == null && settings.getNamespace() == null) {
         fail("Unexpected table name with null tableName and namespace: " + tn);
       }
     }

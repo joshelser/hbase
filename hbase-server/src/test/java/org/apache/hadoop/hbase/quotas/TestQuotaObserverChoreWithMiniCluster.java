@@ -107,7 +107,7 @@ public class TestQuotaObserverChoreWithMiniCluster {
       for (QuotaSettings quotaSettings : scanner) {
         final String namespace = quotaSettings.getNamespace();
         final TableName tableName = quotaSettings.getTableName();
-        if (null != namespace) {
+        if (namespace != null) {
           LOG.debug("Deleting quota for namespace: " + namespace);
           QuotaUtil.deleteNamespaceQuota(conn, namespace);
         } else {
@@ -382,7 +382,7 @@ public class TestQuotaObserverChoreWithMiniCluster {
       @Override
       int getNumReportedRegions(TableName table, QuotaSnapshotStore<TableName> tableStore) {
         Integer i = mockReportedRegions.get(table);
-        if (null == i) {
+        if (i == null) {
           return 0;
         }
         return i;
@@ -424,10 +424,10 @@ public class TestQuotaObserverChoreWithMiniCluster {
           qs instanceof SpaceLimitSettings);
 
       SpaceQuota spaceQuota = null;
-      if (null != qs.getTableName()) {
+      if (qs.getTableName() != null) {
         spaceQuota = chore.getTableSnapshotStore().getSpaceQuota(table);
         assertNotNull("Could not find table space quota for " + table, spaceQuota);
-      } else if (null != qs.getNamespace()) {
+      } else if (qs.getNamespace() != null) {
         spaceQuota = chore.getNamespaceSnapshotStore().getSpaceQuota(table.getNamespaceAsString());
         assertNotNull("Could not find namespace space quota for " + table.getNamespaceAsString(), spaceQuota);
       } else {

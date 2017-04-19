@@ -82,7 +82,7 @@ public class ActivePolicyEnforcement {
    */
   public SpaceViolationPolicyEnforcement getPolicyEnforcement(TableName tableName) {
     SpaceViolationPolicyEnforcement policy = activePolicies.get(Objects.requireNonNull(tableName));
-    if (null == policy) {
+    if (policy == null) {
       synchronized (locallyCachedPolicies) {
         // When we don't have an policy enforcement for the table, there could be one of two cases:
         //  1) The table has no quota defined
@@ -93,7 +93,7 @@ public class ActivePolicyEnforcement {
         policy = locallyCachedPolicies.get(tableName);
         // We have already created/cached the enforcement, use it again. `activePolicies` and
         // `snapshots` are immutable, thus this policy is valid for the lifetime of `this`.
-        if (null != policy) {
+        if (policy != null) {
           return policy;
         }
         // Create a PolicyEnforcement for this table and snapshot. The snapshot may be null

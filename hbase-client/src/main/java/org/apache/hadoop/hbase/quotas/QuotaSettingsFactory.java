@@ -127,11 +127,11 @@ public class QuotaSettingsFactory {
   }
 
   static QuotaSettings fromSpace(TableName table, String namespace, SpaceQuota protoQuota) {
-    if ((null == table && null == namespace) || (null != table && null != namespace)) {
+    if ((table == null && namespace == null) || (table != null && namespace != null)) {
       throw new IllegalArgumentException(
           "Can only construct SpaceLimitSettings for a table or namespace.");
     }
-    if (null != table) {
+    if (table != null) {
       return SpaceLimitSettings.fromSpaceQuota(table, protoQuota);
     } else {
       // namespace must be non-null
@@ -343,7 +343,7 @@ public class QuotaSettingsFactory {
 
   /**
    * Creates a {@link QuotaSettings} object to remove the FileSystem space quota for the given
-	 * namespace.
+   * namespace.
    *
    * @param namespace The namespace to remove the quota on.
    * @return A {@link QuotaSettings} object.

@@ -38,7 +38,7 @@ class SpaceLimitSettings extends QuotaSettings {
 
   SpaceLimitSettings(TableName tableName, long sizeLimit, SpaceViolationPolicy violationPolicy) {
     super(null, Objects.requireNonNull(tableName), null);
-    if (0L > sizeLimit) {
+    if (sizeLimit < 0L) {
       throw new IllegalArgumentException("Size limit must be a non-negative value.");
     }
     proto = buildProtoAddQuota(sizeLimit, Objects.requireNonNull(violationPolicy));
@@ -54,7 +54,7 @@ class SpaceLimitSettings extends QuotaSettings {
 
   SpaceLimitSettings(String namespace, long sizeLimit, SpaceViolationPolicy violationPolicy) {
     super(null, null, Objects.requireNonNull(namespace));
-    if (0L > sizeLimit) {
+    if (sizeLimit < 0L) {
       throw new IllegalArgumentException("Size limit must be a non-negative value.");
     }
     proto = buildProtoAddQuota(sizeLimit, Objects.requireNonNull(violationPolicy));
@@ -183,10 +183,10 @@ class SpaceLimitSettings extends QuotaSettings {
   public String toString() {
     StringBuilder sb = new StringBuilder();
     sb.append("TYPE => SPACE");
-    if (null != getTableName()) {
+    if (getTableName() != null) {
       sb.append(", TABLE => ").append(getTableName());
     }
-    if (null != getNamespace()) {
+    if (getNamespace() != null) {
       sb.append(", NAMESPACE => ").append(getNamespace());
     }
     if (proto.getQuota().getRemove()) {
