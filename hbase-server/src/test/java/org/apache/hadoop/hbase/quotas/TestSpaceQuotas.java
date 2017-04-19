@@ -108,29 +108,17 @@ public class TestSpaceQuotas {
   @Before
   public void removeAllQuotas() throws Exception {
     final Connection conn = TEST_UTIL.getConnection();
+    if (helper == null) {
+      helper = new SpaceQuotaHelperForTests(TEST_UTIL, testName, COUNTER);
+    }
     // Wait for the quota table to be created
     if (!conn.getAdmin().tableExists(QuotaUtil.QUOTA_TABLE_NAME)) {
-      do {
-        LOG.debug("Quota table does not yet exist");
-        Thread.sleep(1000);
-      } while (!conn.getAdmin().tableExists(QuotaUtil.QUOTA_TABLE_NAME));
+      helper.waitForQuotaTable(conn);
     } else {
       // Or, clean up any quotas from previous test runs.
-      QuotaRetriever scanner = QuotaRetriever.open(TEST_UTIL.getConfiguration());
-      for (QuotaSettings quotaSettings : scanner) {
-        final String namespace = quotaSettings.getNamespace();
-        final TableName tableName = quotaSettings.getTableName();
-        if (namespace != null) {
-          LOG.debug("Deleting quota for namespace: " + namespace);
-          QuotaUtil.deleteNamespaceQuota(conn, namespace);
-        } else {
-          assert null != tableName;
-          LOG.debug("Deleting quota for table: "+ tableName);
-          QuotaUtil.deleteTableQuota(conn, tableName);
-        }
-      }
+      helper.removeAllQuotas(conn);
+      assertEquals(0, helper.listNumDefinedQuotas(conn));
     }
-    helper = new SpaceQuotaHelperForTests(TEST_UTIL, testName, COUNTER);
   }
 
   @Test
