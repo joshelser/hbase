@@ -24904,7 +24904,7 @@ public final class AdminProtos {
 
       /**
        * <pre>
-       ** Fetches the RegionServer's view of space quotas 
+       ** Fetches the RegionServer's view of space quotas
        * </pre>
        *
        * <code>rpc GetSpaceQuotaSnapshots(.hbase.pb.GetSpaceQuotaSnapshotsRequest) returns (.hbase.pb.GetSpaceQuotaSnapshotsResponse);</code>
@@ -24916,7 +24916,7 @@ public final class AdminProtos {
 
       /**
        * <pre>
-       ** Fetches the RegionServer's space quota active enforcements 
+       ** Fetches the RegionServer's space quota active enforcements
        * </pre>
        *
        * <code>rpc GetSpaceQuotaEnforcements(.hbase.pb.GetSpaceQuotaEnforcementsRequest) returns (.hbase.pb.GetSpaceQuotaEnforcementsResponse);</code>
@@ -25415,7 +25415,7 @@ public final class AdminProtos {
 
     /**
      * <pre>
-     ** Fetches the RegionServer's view of space quotas 
+     ** Fetches the RegionServer's view of space quotas
      * </pre>
      *
      * <code>rpc GetSpaceQuotaSnapshots(.hbase.pb.GetSpaceQuotaSnapshotsRequest) returns (.hbase.pb.GetSpaceQuotaSnapshotsResponse);</code>
@@ -25427,7 +25427,7 @@ public final class AdminProtos {
 
     /**
      * <pre>
-     ** Fetches the RegionServer's space quota active enforcements 
+     ** Fetches the RegionServer's space quota active enforcements
      * </pre>
      *
      * <code>rpc GetSpaceQuotaEnforcements(.hbase.pb.GetSpaceQuotaEnforcementsRequest) returns (.hbase.pb.GetSpaceQuotaEnforcementsResponse);</code>
