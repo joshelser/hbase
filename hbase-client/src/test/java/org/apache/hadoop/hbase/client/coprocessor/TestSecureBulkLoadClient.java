@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.hadoop.hbase.client.coprocessor;
+package org.apache.hadoop.hbase.client;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -28,14 +28,19 @@ import java.io.IOException;
 import java.util.Collections;
 
 import org.apache.hadoop.hbase.DoNotRetryIOException;
+import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.ipc.CoprocessorRpcChannel;
 import org.apache.hadoop.hbase.ipc.ServerRpcController;
-import org.apache.hadoop.hbase.protobuf.generated.SecureBulkLoadProtos.CleanupBulkLoadResponse;
-import org.apache.hadoop.hbase.protobuf.generated.SecureBulkLoadProtos.PrepareBulkLoadResponse;
-import org.apache.hadoop.hbase.protobuf.generated.SecureBulkLoadProtos.SecureBulkLoadHFilesResponse;
+import org.apache.hadoop.hbase.shaded.com.google.protobuf.Descriptors.MethodDescriptor;
+import org.apache.hadoop.hbase.shaded.com.google.protobuf.Message;
+import org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcCallback;
+import org.apache.hadoop.hbase.shaded.com.google.protobuf.RpcController;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.ClientProtos.CleanupBulkLoadResponse;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.ClientProtos.PrepareBulkLoadResponse;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.ClientProtos.BulkLoadHFileResponse;
 import org.apache.hadoop.hbase.testclassification.ClientTests;
 import org.apache.hadoop.hbase.testclassification.SmallTests;
 import org.apache.hadoop.hbase.util.Pair;
@@ -45,11 +50,6 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-
-import com.google.protobuf.Descriptors.MethodDescriptor;
-import com.google.protobuf.Message;
-import com.google.protobuf.RpcCallback;
-import com.google.protobuf.RpcController;
 
 /**
  * Test class for the SecureBulkLoadClient.
@@ -66,7 +66,7 @@ public class TestSecureBulkLoadClient {
   public void setupMembers() {
     rpcChannel = mock(CoprocessorRpcChannel.class);
     table = mock(Table.class);
-    client = new SecureBulkLoadClient(table);
+    client = new SecureBulkLoadClient(HBaseConfiguration.create(), table);
 
     // Mock out a Table to return a custom CoprocessorRpcChannel
     when(table.coprocessorService(HConstants.EMPTY_START_ROW)).thenReturn(rpcChannel);
@@ -128,9 +128,9 @@ public class TestSecureBulkLoadClient {
 
   @Test
   public void testPreservedExceptionOnBulkLoad() {
-    SecureBulkLoadHFilesResponse response = SecureBulkLoadHFilesResponse.newBuilder()
+    BulkLoadHFileResponse response = BulkLoadHFileResponse.newBuilder()
         .setLoaded(false).build();
-    setupMockForMethod("SecureBulkLoadHFiles", response, DNRIOE);
+    setupMockForMethod("BulkLoadHFile", response, DNRIOE);
 
     try {
       client.bulkLoadHFiles(
