@@ -85,7 +85,8 @@ public interface SpaceViolationPolicyEnforcement {
    * {@link SpaceLimitingException} will be thrown.
    *
    * @param paths The paths in HDFS to files to be bulk loaded.
+   * @return The size, in bytes, of the files that would be loaded.
    */
-  void checkBulkLoad(FileSystem fs, List<String> paths) throws SpaceLimitingException;
+  long checkBulkLoad(FileSystem fs, List<String> paths) throws SpaceLimitingException;
 
 }

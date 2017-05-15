@@ -78,8 +78,8 @@ public class TestQuotaObserverChoreRegionReports {
   @Test
   public void testReportExpiration() throws Exception {
     Configuration conf = TEST_UTIL.getConfiguration();
-    // Send reports every 30 seconds
-    conf.setInt(FileSystemUtilizationChore.FS_UTILIZATION_CHORE_PERIOD_KEY, 25000);
+    // Send reports every 25 seconds
+    conf.setInt(RegionSizeReportingChore.REGION_SIZE_REPORTING_CHORE_PERIOD_KEY, 25000);
     // Expire the reports after 5 seconds
     conf.setInt(QuotaObserverChore.REGION_REPORT_RETENTION_DURATION_KEY, 5000);
     TEST_UTIL.startMiniCluster(1);

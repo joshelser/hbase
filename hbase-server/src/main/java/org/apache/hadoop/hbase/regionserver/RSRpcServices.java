@@ -2263,9 +2263,11 @@ public class RSRpcServices implements HBaseRPCErrorHandler,
       boolean bypass = false;
       boolean loaded = false;
       Map<byte[], List<Path>> map = null;
+      final boolean spaceQuotaEnabled = QuotaUtil.isQuotaEnabled(getConfiguration());
+      long sizeToBeLoaded = -1;
 
       // Check to see if this bulk load would exceed the space quota for this table
-      if (QuotaUtil.isQuotaEnabled(getConfiguration())) {
+      if (spaceQuotaEnabled) {
         ActivePolicyEnforcement activeSpaceQuotas = getSpaceQuotaManager().getActiveEnforcements();
         SpaceViolationPolicyEnforcement enforcement = activeSpaceQuotas.getPolicyEnforcement(
             region);
@@ -2276,7 +2278,7 @@ public class RSRpcServices implements HBaseRPCErrorHandler,
             filePaths.add(familyPath.getPath());
           }
           // Check if the batch of files exceeds the current quota
-          enforcement.checkBulkLoad(regionServer.getFileSystem(), filePaths);
+          sizeToBeLoaded = enforcement.checkBulkLoad(regionServer.getFileSystem(), filePaths);
         }
       }
 
@@ -2309,6 +2311,17 @@ public class RSRpcServices implements HBaseRPCErrorHandler,
       BulkLoadHFileResponse.Builder builder = BulkLoadHFileResponse.newBuilder();
       if (map != null) {
         loaded = true;
+        // Treat any negative size as a flag to "ignore" updating the region size as that is
+        // not possible to occur in real life (cannot bulk load a file with negative size)
+        if (spaceQuotaEnabled && sizeToBeLoaded > 0) {
+          if (LOG.isTraceEnabled()) {
+            LOG.trace("Incrementing space use of " + region.getRegionInfo() + " by "
+                + sizeToBeLoaded + " bytes");
+          }
+          // Inform space quotas of the new files for this region
+          getSpaceQuotaManager().getRegionSizeStore().incrementRegionSize(
+              region.getRegionInfo(), sizeToBeLoaded);
+        }
       }
       builder.setLoaded(loaded);
       return builder.build();

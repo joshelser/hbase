@@ -70,6 +70,7 @@ import org.apache.hadoop.hbase.io.hfile.HFileDataBlockEncoderImpl;
 import org.apache.hadoop.hbase.io.hfile.HFileScanner;
 import org.apache.hadoop.hbase.io.hfile.InvalidHFileException;
 import org.apache.hadoop.hbase.monitoring.MonitoredTask;
+import org.apache.hadoop.hbase.quotas.RegionSizeStore;
 import org.apache.hadoop.hbase.regionserver.compactions.CompactionContext;
 import org.apache.hadoop.hbase.regionserver.compactions.CompactionProgress;
 import org.apache.hadoop.hbase.regionserver.compactions.CompactionRequest;
@@ -1420,9 +1421,44 @@ public class HStore implements Store {
     try {
       this.storeEngine.getStoreFileManager().addCompactionResults(compactedFiles, result);
       filesCompacting.removeAll(compactedFiles); // safe bc: lock.writeLock();
+      if (region.getRegionServerServices() != null) {
+        updateSpaceQuotaAfterFileReplacement(region.getRegionServerServices()
+            .getRegionServerSpaceQuotaManager().getRegionSizeStore(), getRegionInfo(),
+            compactedFiles, result);
+      }
     } finally {
       this.lock.writeLock().unlock();
     }
+  }
+
+  /**
+   * Updates the space quota usage for this region, removing the size for files compacted away
+   * and adding in the size for new files.
+   *
+   * @param sizeStore The object tracking changes in region size for space quotas.
+   * @param regionInfo The identifier for the region whose size is being updated.
+   * @param oldFiles Files removed from this store's region.
+   * @param newFiles Files added to this store's region.
+   */
+  void updateSpaceQuotaAfterFileReplacement(
+      RegionSizeStore sizeStore, HRegionInfo regionInfo, Collection<StoreFile> oldFiles,
+      Collection<StoreFile> newFiles) {
+    long delta = 0;
+    if (oldFiles != null) {
+      for (StoreFile compactedFile : oldFiles) {
+        if (compactedFile.isHFile()) {
+          delta -= compactedFile.getReader().length();
+        }
+      }
+    }
+    if (newFiles != null) {
+      for (StoreFile newFile : newFiles) {
+        if (newFile.isHFile()) {
+          delta += newFile.getReader().length();
+        }
+      }
+    }
+    sizeStore.incrementRegionSize(regionInfo, delta);
   }
 
   /**

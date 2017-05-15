@@ -23,9 +23,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Lists;
 import java.io.IOException;
@@ -76,6 +78,7 @@ import org.apache.hadoop.hbase.io.hfile.HFile;
 import org.apache.hadoop.hbase.io.hfile.HFileContext;
 import org.apache.hadoop.hbase.io.hfile.HFileContextBuilder;
 import org.apache.hadoop.hbase.monitoring.MonitoredTask;
+import org.apache.hadoop.hbase.quotas.RegionSizeStoreImpl;
 import org.apache.hadoop.hbase.regionserver.compactions.CompactionConfiguration;
 import org.apache.hadoop.hbase.regionserver.compactions.DefaultCompactor;
 import org.apache.hadoop.hbase.regionserver.querymatcher.ScanQueryMatcher;
@@ -1220,5 +1223,53 @@ public class TestStore {
         snapshotLatch.countDown();
       }
     }
+  }
+
+  @Test
+  public void testSpaceQuotaChangeAfterReplacement() throws IOException {
+    final TableName tn = TableName.valueOf(name.getMethodName());
+    init(name.getMethodName());
+
+    RegionSizeStoreImpl sizeStore = new RegionSizeStoreImpl();
+
+    StoreFile sf1 = mockStoreFileWithLength(1024L);
+    StoreFile sf2 = mockStoreFileWithLength(2048L);
+    StoreFile sf3 = mockStoreFileWithLength(4096L);
+    StoreFile sf4 = mockStoreFileWithLength(8192L);
+
+    HRegionInfo regionInfo = new HRegionInfo(tn, Bytes.toBytes("a"), Bytes.toBytes("b"));
+
+    // Compacting two files down to one, reducing size
+    sizeStore.put(regionInfo, 1024L + 4096L);
+    store.updateSpaceQuotaAfterFileReplacement(
+        sizeStore, regionInfo, Arrays.asList(sf1, sf3), Arrays.asList(sf2));
+
+    assertEquals(2048L, sizeStore.getRegionSize(regionInfo).getSize());
+
+    // The same file length in and out should have no change
+    store.updateSpaceQuotaAfterFileReplacement(
+        sizeStore, regionInfo, Arrays.asList(sf2), Arrays.asList(sf2));
+
+    assertEquals(2048L, sizeStore.getRegionSize(regionInfo).getSize());
+
+    // Increase the total size used
+    store.updateSpaceQuotaAfterFileReplacement(
+        sizeStore, regionInfo, Arrays.asList(sf2), Arrays.asList(sf3));
+
+    assertEquals(4096L, sizeStore.getRegionSize(regionInfo).getSize());
+
+    HRegionInfo regionInfo2 = new HRegionInfo(tn, Bytes.toBytes("b"), Bytes.toBytes("c"));
+    store.updateSpaceQuotaAfterFileReplacement(sizeStore, regionInfo2, null, Arrays.asList(sf4));
+
+    assertEquals(8192L, sizeStore.getRegionSize(regionInfo2).getSize());
+  }
+
+  private StoreFile mockStoreFileWithLength(long length) {
+    StoreFile sf = mock(StoreFile.class);
+    StoreFileReader sfr = mock(StoreFileReader.class);
+    when(sf.isHFile()).thenReturn(true);
+    when(sf.getReader()).thenReturn(sfr);
+    when(sfr.length()).thenReturn(length);
+    return sf;
   }
 }

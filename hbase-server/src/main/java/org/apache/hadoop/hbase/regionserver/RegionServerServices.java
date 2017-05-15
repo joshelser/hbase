@@ -37,6 +37,7 @@ import org.apache.hadoop.hbase.ipc.RpcServerInterface;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.RegionServerStatusProtos.RegionStateTransition.TransitionCode;
 import org.apache.hadoop.hbase.quotas.RegionServerRpcQuotaManager;
 import org.apache.hadoop.hbase.quotas.RegionServerSpaceQuotaManager;
+import org.apache.hadoop.hbase.quotas.RegionSizeStore;
 import org.apache.hadoop.hbase.regionserver.throttle.ThroughputController;
 import org.apache.hadoop.hbase.wal.WAL;
 import org.apache.zookeeper.KeeperException;
@@ -289,4 +290,12 @@ public interface RegionServerServices extends OnlineRegions, FavoredNodesForRegi
    * See HBASE-17712 for more details.
    */
   void unassign(byte[] regionName) throws IOException;
+
+  /**
+   * Reports the provided Region sizes hosted by this RegionServer to the active Master.
+   *
+   * @param sizeStore The sizes for Regions locally hosted.
+   * @return {@code false} if reporting should be temporarily paused, {@code true} otherwise.
+   */
+  boolean reportRegionSizesForQuotas(RegionSizeStore sizeStore);
 }
