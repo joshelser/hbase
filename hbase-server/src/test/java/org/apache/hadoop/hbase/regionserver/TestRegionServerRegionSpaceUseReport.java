@@ -24,11 +24,11 @@ import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.quotas.RegionSize;
+import org.apache.hadoop.hbase.quotas.RegionSizeStore;
+import org.apache.hadoop.hbase.quotas.RegionSizeStoreFactory;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos.RegionInfo;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.RegionServerStatusProtos.RegionSpaceUse;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.RegionServerStatusProtos.RegionSpaceUseReportRequest;
@@ -36,6 +36,7 @@ import org.apache.hadoop.hbase.testclassification.SmallTests;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+
 
 /**
  * Test class for isolated (non-cluster) tests surrounding the report
@@ -50,50 +51,35 @@ public class TestRegionServerRegionSpaceUseReport {
     HRegionInfo hri1 = new HRegionInfo(tn, Bytes.toBytes("a"), Bytes.toBytes("b"));
     HRegionInfo hri2 = new HRegionInfo(tn, Bytes.toBytes("b"), Bytes.toBytes("c"));
     HRegionInfo hri3 = new HRegionInfo(tn, Bytes.toBytes("c"), Bytes.toBytes("d"));
-    Map<HRegionInfo,Long> sizes = new HashMap<>();
-    sizes.put(hri1, 1024L * 1024L);
-    sizes.put(hri2, 1024L * 1024L * 8L);
-    sizes.put(hri3, 1024L * 1024L * 32L);
+    RegionSizeStore store = RegionSizeStoreFactory.getInstance().createStore();
+    store.put(hri1, 1024L * 1024L);
+    store.put(hri2, 1024L * 1024L * 8L);
+    store.put(hri3, 1024L * 1024L * 32L);
 
     // Call the real method to convert the map into a protobuf
     HRegionServer rs = mock(HRegionServer.class);
-    doCallRealMethod().when(rs).buildRegionSpaceUseReportRequest(any(Map.class));
+    doCallRealMethod().when(rs).buildRegionSpaceUseReportRequest(any(RegionSizeStore.class));
     doCallRealMethod().when(rs).convertRegionSize(any(HRegionInfo.class), anyLong());
 
-    RegionSpaceUseReportRequest requests = rs.buildRegionSpaceUseReportRequest(sizes);
-    assertEquals(sizes.size(), requests.getSpaceUseCount());
-    for (RegionSpaceUse spaceUse : requests.getSpaceUseList()) {
+    RegionSpaceUseReportRequest request = rs.buildRegionSpaceUseReportRequest(store);
+    assertEquals(store.size(), request.getSpaceUseCount());
+    for (RegionSpaceUse spaceUse : request.getSpaceUseList()) {
       RegionInfo ri = spaceUse.getRegionInfo();
       HRegionInfo hri = HRegionInfo.convert(ri);
-      Long expectedSize = sizes.remove(hri);
+      RegionSize expectedSize = store.remove(hri);
       assertNotNull("Could not find size for HRI: " + hri, expectedSize);
-      assertEquals(expectedSize.longValue(), spaceUse.getRegionSize());
+      assertEquals(expectedSize.getSize(), spaceUse.getRegionSize());
     }
-    assertTrue("Should not have any space use entries left: " + sizes, sizes.isEmpty());
+    assertTrue("Should not have any space use entries left: " + store, store.isEmpty());
   }
 
   @Test(expected = NullPointerException.class)
   public void testNullMap() {
     // Call the real method to convert the map into a protobuf
     HRegionServer rs = mock(HRegionServer.class);
-    doCallRealMethod().when(rs).buildRegionSpaceUseReportRequest(any(Map.class));
+    doCallRealMethod().when(rs).buildRegionSpaceUseReportRequest(any(RegionSizeStore.class));
     doCallRealMethod().when(rs).convertRegionSize(any(HRegionInfo.class), anyLong());
 
     rs.buildRegionSpaceUseReportRequest(null);
-  }
-
-  @Test(expected = NullPointerException.class)
-  public void testMalformedMap() {
-    TableName tn = TableName.valueOf("table1");
-    HRegionInfo hri1 = new HRegionInfo(tn, Bytes.toBytes("a"), Bytes.toBytes("b"));
-    Map<HRegionInfo,Long> sizes = new HashMap<>();
-    sizes.put(hri1, null);
-
-    // Call the real method to convert the map into a protobuf
-    HRegionServer rs = mock(HRegionServer.class);
-    doCallRealMethod().when(rs).buildRegionSpaceUseReportRequest(any(Map.class));
-    doCallRealMethod().when(rs).convertRegionSize(any(HRegionInfo.class), anyLong());
-
-    rs.buildRegionSpaceUseReportRequest(sizes);
   }
 }

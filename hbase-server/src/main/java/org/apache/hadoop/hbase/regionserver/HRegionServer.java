@@ -127,6 +127,8 @@ import org.apache.hadoop.hbase.quotas.FileSystemUtilizationChore;
 import org.apache.hadoop.hbase.quotas.QuotaUtil;
 import org.apache.hadoop.hbase.quotas.RegionServerRpcQuotaManager;
 import org.apache.hadoop.hbase.quotas.RegionServerSpaceQuotaManager;
+import org.apache.hadoop.hbase.quotas.RegionSize;
+import org.apache.hadoop.hbase.quotas.RegionSizeStore;
 import org.apache.hadoop.hbase.regionserver.compactions.CompactionConfiguration;
 import org.apache.hadoop.hbase.regionserver.compactions.CompactionProgress;
 import org.apache.hadoop.hbase.regionserver.handler.CloseMetaHandler;
@@ -1285,10 +1287,11 @@ public class HRegionServer extends HasThread implements
   /**
    * Reports the given map of Regions and their size on the filesystem to the active Master.
    *
-   * @param onlineRegionSizes A map of region info to size in bytes
+   * @param regionSizeStore The store containing region sizes
    * @return false if FileSystemUtilizationChore should pause reporting to master. true otherwise
    */
-  public boolean reportRegionSizesForQuotas(final Map<HRegionInfo, Long> onlineRegionSizes) {
+  @Override
+  public boolean reportRegionSizesForQuotas(RegionSizeStore regionSizeStore) {
     RegionServerStatusService.BlockingInterface rss = rssStub;
     if (rss == null) {
       // the current server could be stopping.
@@ -1296,9 +1299,7 @@ public class HRegionServer extends HasThread implements
       return true;
     }
     try {
-      RegionSpaceUseReportRequest request = buildRegionSpaceUseReportRequest(
-          Objects.requireNonNull(onlineRegionSizes));
-      rss.reportRegionSpaceUse(null, request);
+      buildReportAndSend(rss, regionSizeStore);
     } catch (ServiceException se) {
       IOException ioe = ProtobufUtil.getRemoteException(se);
       if (ioe instanceof PleaseHoldException) {
@@ -1327,15 +1328,33 @@ public class HRegionServer extends HasThread implements
   }
 
   /**
+   * Builds the region size report and sends it to the master. Upon successful sending of the
+   * report, the region sizes that were sent are marked as sent.
+   *
+   * @param rss The stub to send to the Master
+   * @param regionSizeStore The store containing region sizes
+   */
+  void buildReportAndSend(RegionServerStatusService.BlockingInterface rss,
+      RegionSizeStore regionSizeStore) throws ServiceException {
+    RegionSpaceUseReportRequest request =
+        buildRegionSpaceUseReportRequest(Objects.requireNonNull(regionSizeStore));
+    rss.reportRegionSpaceUse(null, request);
+    // Record the number of size reports sent
+    if (metricsRegionServer != null) {
+      metricsRegionServer.incrementNumRegionSizeReportsSent(regionSizeStore.size());
+    }
+  }
+
+  /**
    * Builds a {@link RegionSpaceUseReportRequest} protobuf message from the region size map.
    *
-   * @param regionSizes Map of region info to size in bytes.
+   * @param regionSizeStore The size in bytes of regions
    * @return The corresponding protocol buffer message.
    */
-  RegionSpaceUseReportRequest buildRegionSpaceUseReportRequest(Map<HRegionInfo,Long> regionSizes) {
+  RegionSpaceUseReportRequest buildRegionSpaceUseReportRequest(RegionSizeStore regionSizeStore) {
     RegionSpaceUseReportRequest.Builder request = RegionSpaceUseReportRequest.newBuilder();
-    for (Entry<HRegionInfo, Long> entry : Objects.requireNonNull(regionSizes).entrySet()) {
-      request.addSpaceUse(convertRegionSize(entry.getKey(), entry.getValue()));
+    for (Entry<HRegionInfo, RegionSize> entry : regionSizeStore) {
+      request.addSpaceUse(convertRegionSize(entry.getKey(), entry.getValue().getSize()));
     }
     return request.build();
   }

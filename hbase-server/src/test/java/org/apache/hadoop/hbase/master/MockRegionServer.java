@@ -108,6 +108,7 @@ import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.GetSpaceQuo
 import org.apache.hadoop.hbase.shaded.protobuf.generated.RegionServerStatusProtos.RegionStateTransition.TransitionCode;
 import org.apache.hadoop.hbase.quotas.RegionServerRpcQuotaManager;
 import org.apache.hadoop.hbase.quotas.RegionServerSpaceQuotaManager;
+import org.apache.hadoop.hbase.quotas.RegionSizeStore;
 import org.apache.hadoop.hbase.regionserver.CompactionRequestor;
 import org.apache.hadoop.hbase.regionserver.FlushRequester;
 import org.apache.hadoop.hbase.regionserver.HRegion;
@@ -739,5 +740,10 @@ ClientProtos.ClientService.BlockingInterface, RegionServerServices {
       throws ServiceException {
     // TODO Auto-generated method stub
     return null;
+  }
+
+  @Override
+  public boolean reportRegionSizesForQuotas(RegionSizeStore sizeStore) {
+    return true;
   }
 }
