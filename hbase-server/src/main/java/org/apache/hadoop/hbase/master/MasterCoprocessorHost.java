@@ -57,9 +57,9 @@ import org.apache.hadoop.hbase.procedure2.LockType;
 import org.apache.hadoop.hbase.procedure2.LockedResource;
 import org.apache.hadoop.hbase.procedure2.Procedure;
 import org.apache.hadoop.hbase.procedure2.ProcedureExecutor;
+import org.apache.hadoop.hbase.quotas.QuotaSettings;
 import org.apache.hadoop.hbase.replication.ReplicationPeerConfig;
 import org.apache.hadoop.hbase.security.User;
-import org.apache.hadoop.hbase.shaded.protobuf.generated.QuotaProtos.Quotas;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.SnapshotProtos.SnapshotDescription;
 
 /**
@@ -1327,7 +1327,7 @@ public class MasterCoprocessorHost
     });
   }
 
-  public void preSetUserQuota(final String user, final Quotas quotas) throws IOException {
+  public void preSetUserQuota(final String user, final QuotaSettings quotas) throws IOException {
     execOperation(coprocessors.isEmpty() ? null : new CoprocessorOperation() {
       @Override
       public void call(MasterObserver oserver, ObserverContext<MasterCoprocessorEnvironment> ctx)
@@ -1337,7 +1337,8 @@ public class MasterCoprocessorHost
     });
   }
 
-  public void postSetUserQuota(final String user, final Quotas quotas) throws IOException {
+  public void postSetUserQuota(
+      final String user, final QuotaSettings quotas) throws IOException {
     execOperation(coprocessors.isEmpty() ? null : new CoprocessorOperation() {
       @Override
       public void call(MasterObserver oserver, ObserverContext<MasterCoprocessorEnvironment> ctx)
@@ -1347,8 +1348,8 @@ public class MasterCoprocessorHost
     });
   }
 
-  public void preSetUserQuota(final String user, final TableName table, final Quotas quotas)
-      throws IOException {
+  public void preSetUserQuota(
+      final String user, final TableName table, final QuotaSettings quotas) throws IOException {
     execOperation(coprocessors.isEmpty() ? null : new CoprocessorOperation() {
       @Override
       public void call(MasterObserver oserver, ObserverContext<MasterCoprocessorEnvironment> ctx)
@@ -1358,8 +1359,8 @@ public class MasterCoprocessorHost
     });
   }
 
-  public void postSetUserQuota(final String user, final TableName table, final Quotas quotas)
-      throws IOException {
+  public void postSetUserQuota(
+      final String user, final TableName table, final QuotaSettings quotas) throws IOException {
     execOperation(coprocessors.isEmpty() ? null : new CoprocessorOperation() {
       @Override
       public void call(MasterObserver oserver, ObserverContext<MasterCoprocessorEnvironment> ctx)
@@ -1369,8 +1370,8 @@ public class MasterCoprocessorHost
     });
   }
 
-  public void preSetUserQuota(final String user, final String namespace, final Quotas quotas)
-      throws IOException {
+  public void preSetUserQuota(
+      final String user, final String namespace, final QuotaSettings quotas) throws IOException {
     execOperation(coprocessors.isEmpty() ? null : new CoprocessorOperation() {
       @Override
       public void call(MasterObserver oserver, ObserverContext<MasterCoprocessorEnvironment> ctx)
@@ -1380,8 +1381,8 @@ public class MasterCoprocessorHost
     });
   }
 
-  public void postSetUserQuota(final String user, final String namespace, final Quotas quotas)
-      throws IOException {
+  public void postSetUserQuota(
+      final String user, final String namespace, final QuotaSettings quotas) throws IOException {
     execOperation(coprocessors.isEmpty() ? null : new CoprocessorOperation() {
       @Override
       public void call(MasterObserver oserver, ObserverContext<MasterCoprocessorEnvironment> ctx)
@@ -1391,7 +1392,8 @@ public class MasterCoprocessorHost
     });
   }
 
-  public void preSetTableQuota(final TableName table, final Quotas quotas) throws IOException {
+  public void preSetTableQuota(
+      final TableName table, final QuotaSettings quotas) throws IOException {
     execOperation(coprocessors.isEmpty() ? null : new CoprocessorOperation() {
       @Override
       public void call(MasterObserver oserver, ObserverContext<MasterCoprocessorEnvironment> ctx)
@@ -1401,7 +1403,8 @@ public class MasterCoprocessorHost
     });
   }
 
-  public void postSetTableQuota(final TableName table, final Quotas quotas) throws IOException {
+  public void postSetTableQuota(
+      final TableName table, final QuotaSettings quotas) throws IOException {
     execOperation(coprocessors.isEmpty() ? null : new CoprocessorOperation() {
       @Override
       public void call(MasterObserver oserver, ObserverContext<MasterCoprocessorEnvironment> ctx)
@@ -1411,7 +1414,8 @@ public class MasterCoprocessorHost
     });
   }
 
-  public void preSetNamespaceQuota(final String namespace, final Quotas quotas) throws IOException {
+  public void preSetNamespaceQuota(
+      final String namespace, final QuotaSettings quotas) throws IOException {
     execOperation(coprocessors.isEmpty() ? null : new CoprocessorOperation() {
       @Override
       public void call(MasterObserver oserver, ObserverContext<MasterCoprocessorEnvironment> ctx)
@@ -1421,7 +1425,8 @@ public class MasterCoprocessorHost
     });
   }
 
-  public void postSetNamespaceQuota(final String namespace, final Quotas quotas) throws IOException{
+  public void postSetNamespaceQuota(
+      final String namespace, final QuotaSettings quotas) throws IOException{
     execOperation(coprocessors.isEmpty() ? null : new CoprocessorOperation() {
       @Override
       public void call(MasterObserver oserver, ObserverContext<MasterCoprocessorEnvironment> ctx)

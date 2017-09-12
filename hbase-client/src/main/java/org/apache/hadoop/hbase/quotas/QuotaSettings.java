@@ -21,8 +21,10 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.hbase.TableName;
 import org.apache.yetus.audience.InterfaceAudience;
+import org.apache.hadoop.hbase.shaded.com.google.protobuf.TextFormat;
 import org.apache.hadoop.hbase.shaded.protobuf.ProtobufUtil;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.MasterProtos.SetQuotaRequest;
+import org.apache.hadoop.hbase.quotas.QuotaSettingsFactory.QuotaGlobalsSettingsBypass;
 
 @InterfaceAudience.Public
 public abstract class QuotaSettings {
@@ -49,6 +51,48 @@ public abstract class QuotaSettings {
 
   public String getNamespace() {
     return namespace;
+  }
+
+  /**
+   * Converts the protocol buffer request into a QuotaSetting POJO.
+   *
+   * @param request The protocol buffer request.
+   * @return A {@link QuotaSettings} POJO.
+   */
+  public static QuotaSettings buildFromProto(SetQuotaRequest request) {
+    String username = null;
+    if (request.hasUserName()) {
+      username = request.getUserName();
+    }
+    TableName tableName = null;
+    if (request.hasTableName()) {
+      tableName = ProtobufUtil.toTableName(request.getTableName());
+    }
+    String namespace = null;
+    if (request.hasNamespace()) {
+      namespace = request.getNamespace();
+    }
+    if (request.hasBypassGlobals()) {
+      // Make sure we don't have either of the two below limits also included
+      if (request.hasSpaceLimit() || request.hasThrottle()) {
+        throw new IllegalStateException("SetQuotaRequest has multiple limits: " + TextFormat.shortDebugString(request));
+      }
+      return new QuotaGlobalsSettingsBypass(username, tableName, namespace, request.getBypassGlobals());
+    } else if (request.hasSpaceLimit()) {
+      // Make sure we don't have the below limit as well
+      if (request.hasThrottle()) {
+        throw new IllegalStateException("SetQuotaRequests has multiple limits: " + TextFormat.shortDebugString(request));
+      }
+      // Sanity check on the pb received.
+      if (!request.getSpaceLimit().hasQuota()) {
+        throw new IllegalArgumentException("SpaceLimitRequest is missing the expected SpaceQuota.");
+      }
+      return QuotaSettingsFactory.fromSpace(tableName, namespace, request.getSpaceLimit().getQuota());
+    } else if (request.hasThrottle()) {
+      return new ThrottleSettings(username, tableName, namespace, request.getThrottle());
+    } else {
+      throw new IllegalStateException("Unhandled SetRequestRequest state");
+    }
   }
 
   /**
@@ -119,4 +163,12 @@ public abstract class QuotaSettings {
     }
     throw new RuntimeException("Invalid TimeUnit " + timeUnit);
   }
+
+  /**
+   * Merges the provided settings with {@code this} and returns a new settings
+   * object to the caller if the merged settings differ from the original.
+   *
+   * @param newSettings The new settings to merge in.
+   */
+  protected abstract QuotaSettings merge(QuotaSettings newSettings);
 }

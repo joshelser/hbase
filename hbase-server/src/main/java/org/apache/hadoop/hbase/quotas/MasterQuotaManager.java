@@ -162,7 +162,7 @@ public class MasterQuotaManager implements RegionStateListener {
         return QuotaUtil.getUserQuota(masterServices.getConnection(), userName);
       }
       @Override
-      public void update(final Quotas quotas) throws IOException {
+      public void update(final Quotas quotas, QuotaSettings quotaPojo) throws IOException {
         QuotaUtil.addUserQuota(masterServices.getConnection(), userName, quotas);
       }
       @Override
@@ -170,11 +170,11 @@ public class MasterQuotaManager implements RegionStateListener {
         QuotaUtil.deleteUserQuota(masterServices.getConnection(), userName);
       }
       @Override
-      public void preApply(final Quotas quotas) throws IOException {
+      public void preApply(final Quotas quotas, QuotaSettings quotaPojo) throws IOException {
         masterServices.getMasterCoprocessorHost().preSetUserQuota(userName, quotas);
       }
       @Override
-      public void postApply(final Quotas quotas) throws IOException {
+      public void postApply(final Quotas quotas, QuotaSettings quotaPojo) throws IOException {
         masterServices.getMasterCoprocessorHost().postSetUserQuota(userName, quotas);
       }
     });
@@ -188,7 +188,7 @@ public class MasterQuotaManager implements RegionStateListener {
         return QuotaUtil.getUserQuota(masterServices.getConnection(), userName, table);
       }
       @Override
-      public void update(final Quotas quotas) throws IOException {
+      public void update(final Quotas quotas, QuotaSettings quotaPojo) throws IOException {
         QuotaUtil.addUserQuota(masterServices.getConnection(), userName, table, quotas);
       }
       @Override
@@ -196,11 +196,11 @@ public class MasterQuotaManager implements RegionStateListener {
         QuotaUtil.deleteUserQuota(masterServices.getConnection(), userName, table);
       }
       @Override
-      public void preApply(final Quotas quotas) throws IOException {
+      public void preApply(final Quotas quotas, QuotaSettings quotaPojo) throws IOException {
         masterServices.getMasterCoprocessorHost().preSetUserQuota(userName, table, quotas);
       }
       @Override
-      public void postApply(final Quotas quotas) throws IOException {
+      public void postApply(final Quotas quotas, QuotaSettings quotaPojo) throws IOException {
         masterServices.getMasterCoprocessorHost().postSetUserQuota(userName, table, quotas);
       }
     });
@@ -214,7 +214,7 @@ public class MasterQuotaManager implements RegionStateListener {
         return QuotaUtil.getUserQuota(masterServices.getConnection(), userName, namespace);
       }
       @Override
-      public void update(final Quotas quotas) throws IOException {
+      public void update(final Quotas quotas, QuotaSettings quotaPojo) throws IOException {
         QuotaUtil.addUserQuota(masterServices.getConnection(), userName, namespace, quotas);
       }
       @Override
@@ -222,11 +222,11 @@ public class MasterQuotaManager implements RegionStateListener {
         QuotaUtil.deleteUserQuota(masterServices.getConnection(), userName, namespace);
       }
       @Override
-      public void preApply(final Quotas quotas) throws IOException {
+      public void preApply(final Quotas quotas, QuotaSettings quotaPojo) throws IOException {
         masterServices.getMasterCoprocessorHost().preSetUserQuota(userName, namespace, quotas);
       }
       @Override
-      public void postApply(final Quotas quotas) throws IOException {
+      public void postApply(final Quotas quotas, QuotaSettings quotaPojo) throws IOException {
         masterServices.getMasterCoprocessorHost().postSetUserQuota(userName, namespace, quotas);
       }
     });
@@ -240,7 +240,7 @@ public class MasterQuotaManager implements RegionStateListener {
         return QuotaUtil.getTableQuota(masterServices.getConnection(), table);
       }
       @Override
-      public void update(final Quotas quotas) throws IOException {
+      public void update(final Quotas quotas, QuotaSettings quotaPojo) throws IOException {
         QuotaUtil.addTableQuota(masterServices.getConnection(), table, quotas);
       }
       @Override
@@ -248,11 +248,11 @@ public class MasterQuotaManager implements RegionStateListener {
         QuotaUtil.deleteTableQuota(masterServices.getConnection(), table);
       }
       @Override
-      public void preApply(final Quotas quotas) throws IOException {
+      public void preApply(final Quotas quotas, QuotaSettings quotaPojo) throws IOException {
         masterServices.getMasterCoprocessorHost().preSetTableQuota(table, quotas);
       }
       @Override
-      public void postApply(final Quotas quotas) throws IOException {
+      public void postApply(final Quotas quotas, QuotaSettings quotaPojo) throws IOException {
         masterServices.getMasterCoprocessorHost().postSetTableQuota(table, quotas);
       }
     });
@@ -266,7 +266,7 @@ public class MasterQuotaManager implements RegionStateListener {
         return QuotaUtil.getNamespaceQuota(masterServices.getConnection(), namespace);
       }
       @Override
-      public void update(final Quotas quotas) throws IOException {
+      public void update(final Quotas quotas, QuotaSettings quotaPojo) throws IOException {
         QuotaUtil.addNamespaceQuota(masterServices.getConnection(), namespace, quotas);
       }
       @Override
@@ -274,11 +274,11 @@ public class MasterQuotaManager implements RegionStateListener {
         QuotaUtil.deleteNamespaceQuota(masterServices.getConnection(), namespace);
       }
       @Override
-      public void preApply(final Quotas quotas) throws IOException {
+      public void preApply(final Quotas quotas, QuotaSettings quotaPojo) throws IOException {
         masterServices.getMasterCoprocessorHost().preSetNamespaceQuota(namespace, quotas);
       }
       @Override
-      public void postApply(final Quotas quotas) throws IOException {
+      public void postApply(final Quotas quotas, QuotaSettings quotaPojo) throws IOException {
         masterServices.getMasterCoprocessorHost().postSetNamespaceQuota(namespace, quotas);
       }
     });
@@ -306,10 +306,15 @@ public class MasterQuotaManager implements RegionStateListener {
     }
 
     // Apply quota changes
-    Quotas quotas = quotaOps.fetch();
-    quotaOps.preApply(quotas);
+    QuotaSettings currentQuota = quotaOps.fetch();
+    // Call the appropriate "pre" CP hook with the current quota value (may be null)
+    quotaOps.preApply(currentQuota);
+    QuotaSettings newQuota = QuotaSettings.buildFromProto(req);
 
-    // Copy the user request into the Quotas object
+    // Merge the current quota settings with the new quota settings the user provided
+    QuotaSettings mergedQuota = currentQuota.merge(newQuota);
+    // While SetQuotaRequest technically allows for multi types of quotas to be set in one
+    // message, the Java API (in Admin/AsyncAdmin) does not. Assume there is only one type.
     Quotas.Builder builder = (quotas != null) ? quotas.toBuilder() : Quotas.newBuilder();
     if (req.hasThrottle()) applyThrottle(builder, req.getThrottle());
     if (req.hasBypassGlobals()) applyBypassGlobals(builder, req.getBypassGlobals());
@@ -320,9 +325,9 @@ public class MasterQuotaManager implements RegionStateListener {
     if (QuotaUtil.isEmptyQuota(quotas)) {
       quotaOps.delete();
     } else {
-      quotaOps.update(quotas);
+      quotaOps.update(quotas, quotasPojo);
     }
-    quotaOps.postApply(quotas);
+    quotaOps.postApply(quotas, quotasPojo);
   }
 
   public void checkNamespaceTableAndRegionQuota(TableName tName, int regions) throws IOException {
@@ -378,11 +383,11 @@ public class MasterQuotaManager implements RegionStateListener {
   }
 
   private static interface SetQuotaOperations {
-    Quotas fetch() throws IOException;
+    QuotaSettings fetch() throws IOException;
     void delete() throws IOException;
-    void update(final Quotas quotas) throws IOException;
-    void preApply(final Quotas quotas) throws IOException;
-    void postApply(final Quotas quotas) throws IOException;
+    void update(QuotaSettings quotaPojo) throws IOException;
+    void preApply(QuotaSettings quotaPojo) throws IOException;
+    void postApply(QuotaSettings quotaPojo) throws IOException;
   }
 
   /* ==========================================================================
