@@ -17,6 +17,7 @@
  */
 package org.apache.hadoop.hbase.quotas;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -53,6 +54,21 @@ public class QuotaSettingsFactory {
     @Override
     public String toString() {
       return "GLOBAL_BYPASS => " + bypassGlobals;
+    }
+
+    protected boolean getBypass() {
+      return bypassGlobals;
+    }
+
+    @Override
+    protected QuotaSettings merge(QuotaSettings newSettings) throws IOException {
+      if (newSettings instanceof QuotaGlobalsSettingsBypass) {
+        QuotaGlobalsSettingsBypass other = (QuotaGlobalsSettingsBypass) newSettings;
+        if (getBypass() != other.getBypass()) {
+          return newSettings;
+        }
+      }
+      return this;
     }
   }
 

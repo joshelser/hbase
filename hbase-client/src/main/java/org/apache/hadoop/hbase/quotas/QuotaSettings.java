@@ -17,6 +17,7 @@
  */
 package org.apache.hadoop.hbase.quotas;
 
+import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.hbase.TableName;
@@ -54,7 +55,9 @@ public abstract class QuotaSettings {
   }
 
   /**
-   * Converts the protocol buffer request into a QuotaSetting POJO.
+   * Converts the protocol buffer request into a QuotaSetting POJO. Arbitrarily
+   * enforces that the request only contain one "limit", despite the message
+   * allowing multiple. The public API does not allow such use of the message.
    *
    * @param request The protocol buffer request.
    * @return A {@link QuotaSettings} POJO.
@@ -169,6 +172,7 @@ public abstract class QuotaSettings {
    * object to the caller if the merged settings differ from the original.
    *
    * @param newSettings The new settings to merge in.
+   * @return The merged {@link QuotaSettings} object or null if the quota should be deleted.
    */
-  protected abstract QuotaSettings merge(QuotaSettings newSettings);
+  protected abstract QuotaSettings merge(QuotaSettings newSettings) throws IOException;
 }

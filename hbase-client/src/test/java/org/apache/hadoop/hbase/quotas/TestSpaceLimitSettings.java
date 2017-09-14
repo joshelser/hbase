@@ -21,6 +21,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
 
+import java.io.IOException;
+
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.shaded.protobuf.ProtobufUtil;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.MasterProtos.SetQuotaRequest;
@@ -119,7 +121,7 @@ public class TestSpaceLimitSettings {
   }
 
   @Test
-  public void testQuotaMerging() {
+  public void testQuotaMerging() throws IOException {
     TableName tn = TableName.valueOf("foo");
     QuotaSettings originalSettings = QuotaSettingsFactory.limitTableSpace(tn, 1024L * 1024L, SpaceViolationPolicy.DISABLE);
     QuotaSettings largerSizeLimit = QuotaSettingsFactory.limitTableSpace(tn, 5L * 1024L * 1024L, SpaceViolationPolicy.DISABLE);
