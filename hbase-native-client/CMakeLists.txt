@@ -226,4 +226,9 @@ INSTALL (
     DIRECTORY ${CMAKE_SOURCE_DIR}/include/
     DESTINATION include/
     FILES_MATCHING PATTERN "*.h*")
+# Install pb-generated headers too
+INSTALL (
+    DIRECTORY ${CMAKE_BINARY_DIR_GEN}
+    DESTINATION include/hbase/if
+    FILES_MATCHING PATTERN "hbase/if/*.h")
 
