@@ -1686,8 +1686,8 @@ public class HMaster extends HRegionServer implements MasterServices {
 
     // Now we can do the move
     RegionPlan rp = new RegionPlan(hri, regionState.getServerName(), dest);
-    assert rp.getDestination() != null: rp.toString() + " " + dest;
-    assert rp.getSource() != null: rp.toString();
+    //assert rp.getDestination() != null: rp.toString() + " " + dest;
+    //assert rp.getSource() != null: rp.toString();
 
     try {
       checkInitialized();
