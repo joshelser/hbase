@@ -363,7 +363,7 @@ class BlockingRpcConnection extends RpcConnection implements Runnable {
 
   private boolean setupSaslConnection(final InputStream in2, final OutputStream out2)
       throws IOException {
-    saslRpcClient = new HBaseSaslRpcClient(authMethod, token, serverPrincipal,
+    saslRpcClient = new HBaseSaslRpcClient(provider, token, serverPrincipal,
         this.rpcClient.fallbackAllowed, this.rpcClient.conf.get("hbase.rpc.protection",
           QualityOfProtection.AUTHENTICATION.name().toLowerCase(Locale.ROOT)),
         this.rpcClient.conf.getBoolean(CRYPTO_AES_ENABLED_KEY, CRYPTO_AES_ENABLED_DEFAULT));

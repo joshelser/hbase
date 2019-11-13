@@ -69,15 +69,15 @@ public class SaslUtil {
     return fullName.split("[/@]");
   }
 
-  static String encodeIdentifier(byte[] identifier) {
+  public static String encodeIdentifier(byte[] identifier) {
     return new String(Base64.encodeBase64(identifier), StandardCharsets.UTF_8);
   }
 
-  static byte[] decodeIdentifier(String identifier) {
+  public static byte[] decodeIdentifier(String identifier) {
     return Base64.decodeBase64(Bytes.toBytes(identifier));
   }
 
-  static char[] encodePassword(byte[] password) {
+  public static char[] encodePassword(byte[] password) {
     return new String(Base64.encodeBase64(password), StandardCharsets.UTF_8).toCharArray();
   }
 

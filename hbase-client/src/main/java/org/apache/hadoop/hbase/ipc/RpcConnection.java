@@ -17,34 +17,34 @@
  */
 package org.apache.hadoop.hbase.ipc;
 
-import org.apache.hbase.thirdparty.io.netty.util.HashedWheelTimer;
-import org.apache.hbase.thirdparty.io.netty.util.Timeout;
-import org.apache.hbase.thirdparty.io.netty.util.TimerTask;
-
 import java.io.IOException;
 import java.net.UnknownHostException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HConstants;
-import org.apache.yetus.audience.InterfaceAudience;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.hadoop.hbase.codec.Codec;
-import org.apache.hadoop.hbase.protobuf.generated.AuthenticationProtos;
+import org.apache.hadoop.hbase.security.AuthMethod;
+import org.apache.hadoop.hbase.security.SecurityInfo;
+import org.apache.hadoop.hbase.security.provider.SaslClientAuthenticationProvider;
+import org.apache.hadoop.hbase.security.provider.SaslClientAuthenticationProviders;
 import org.apache.hadoop.hbase.shaded.protobuf.ProtobufUtil;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.RPCProtos.ConnectionHeader;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.RPCProtos.UserInformation;
-import org.apache.hadoop.hbase.security.AuthMethod;
-import org.apache.hadoop.hbase.security.SecurityInfo;
 import org.apache.hadoop.hbase.util.EnvironmentEdgeManager;
+import org.apache.hadoop.hbase.util.Pair;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.security.SecurityUtil;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
-import org.apache.hadoop.security.token.TokenSelector;
+import org.apache.hbase.thirdparty.io.netty.util.HashedWheelTimer;
+import org.apache.hbase.thirdparty.io.netty.util.Timeout;
+import org.apache.hbase.thirdparty.io.netty.util.TimerTask;
+import org.apache.yetus.audience.InterfaceAudience;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Base class for ipc connection.
@@ -81,6 +81,8 @@ abstract class RpcConnection {
   // the last time we were picked up from connection pool.
   protected long lastTouched;
 
+  protected SaslClientAuthenticationProvider provider;
+
   protected RpcConnection(Configuration conf, HashedWheelTimer timeoutTimer, ConnectionId remoteId,
       String clusterId, boolean isSecurityEnabled, Codec codec, CompressionCodec compressor)
       throws IOException {
@@ -95,19 +97,15 @@ abstract class RpcConnection {
     UserGroupInformation ticket = remoteId.getTicket().getUGI();
     SecurityInfo securityInfo = SecurityInfo.getInfo(remoteId.getServiceName());
     this.useSasl = isSecurityEnabled;
-    Token<? extends TokenIdentifier> token = null;
     String serverPrincipal = null;
     if (useSasl && securityInfo != null) {
-      AuthenticationProtos.TokenIdentifier.Kind tokenKind = securityInfo.getTokenKind();
-      if (tokenKind != null) {
-        TokenSelector<? extends TokenIdentifier> tokenSelector = AbstractRpcClient.TOKEN_HANDLERS
-            .get(tokenKind);
-        if (tokenSelector != null) {
-          token = tokenSelector.selectToken(new Text(clusterId), ticket.getTokens());
-        } else if (LOG.isDebugEnabled()) {
-          LOG.debug("No token selector found for type " + tokenKind);
-        }
-      }
+      // Choose the correct Token and AuthenticationProvider for this client to use
+      SaslClientAuthenticationProviders providers = SaslClientAuthenticationProviders.getInstance();
+      Pair<Token<? extends TokenIdentifier>, SaslClientAuthenticationProvider> pair =
+          providers.selectProvider(new Text(clusterId), ticket.getTokens());
+      this.token = pair.getFirst();
+      this.provider = pair.getSecond();
+
       String serverKey = securityInfo.getServerPrincipal();
       if (serverKey == null) {
         throw new IOException("Can't obtain server Kerberos config key from SecurityInfo");
@@ -118,16 +116,15 @@ abstract class RpcConnection {
         LOG.debug("RPC Server Kerberos principal name for service=" + remoteId.getServiceName()
             + " is " + serverPrincipal);
       }
-    }
-    this.token = token;
-    this.serverPrincipal = serverPrincipal;
-    if (!useSasl) {
+      this.authMethod = provider.getHBaseAuthMethod();
+    } else if (!useSasl) {
       authMethod = AuthMethod.SIMPLE;
-    } else if (token != null) {
-      authMethod = AuthMethod.DIGEST;
+      this.token = null;
     } else {
-      authMethod = AuthMethod.KERBEROS;
+      throw new RuntimeException("Could not compute valid client authentication provider");
     }
+
+    this.serverPrincipal = serverPrincipal;
 
     // Log if debug AND non-default auth, else if trace enabled.
     // No point logging obvious.
