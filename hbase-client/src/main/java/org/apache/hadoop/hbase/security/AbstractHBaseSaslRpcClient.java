@@ -76,6 +76,9 @@ public abstract class AbstractHBaseSaslRpcClient {
 
     provider.configure(serverPrincipal, token, fallbackAllowed, saslProps);
     saslClient = provider.createClient();
+    if (saslClient == null) {
+      throw new IOException("Authentication provider " + provider.getClass() + " returned a null SaslClient");
+    }
   }
 
   public byte[] getInitialResponse() throws SaslException {

@@ -1,3 +1,20 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.hadoop.hbase.security.provider;
 
 import java.io.IOException;
@@ -35,6 +52,10 @@ public class DigestSaslClientAuthenticationProvider extends AbstractSaslClientAu
   private Token<? extends TokenIdentifier> token;
   private boolean fallbackAllowed;
   private Map<String, String> saslProps;
+
+  public static String getMechanism() {
+    return MECHANISM;
+  }
 
   @Override
   public void configure(String serverPrincipal, Token<? extends TokenIdentifier> token, boolean fallbackAllowed,
@@ -76,7 +97,7 @@ public class DigestSaslClientAuthenticationProvider extends AbstractSaslClientAu
     return AUTH_METHOD;
   }
 
-  static class DigestSaslClientCallbackHandler implements CallbackHandler {
+  public static class DigestSaslClientCallbackHandler implements CallbackHandler {
     private static final Logger LOG = LoggerFactory.getLogger(DigestSaslClientCallbackHandler.class);
     private final String userName;
     private final char[] userPassword;
@@ -123,5 +144,37 @@ public class DigestSaslClientAuthenticationProvider extends AbstractSaslClientAu
         rc.setText(rc.getDefaultText());
       }
     }
+  }
+
+  public String getServerPrincipal() {
+    return serverPrincipal;
+  }
+
+  public void setServerPrincipal(String serverPrincipal) {
+    this.serverPrincipal = serverPrincipal;
+  }
+
+  public Token<? extends TokenIdentifier> getToken() {
+    return token;
+  }
+
+  public void setToken(Token<? extends TokenIdentifier> token) {
+    this.token = token;
+  }
+
+  public boolean isFallbackAllowed() {
+    return fallbackAllowed;
+  }
+
+  public void setFallbackAllowed(boolean fallbackAllowed) {
+    this.fallbackAllowed = fallbackAllowed;
+  }
+
+  public Map<String, String> getSaslProps() {
+    return saslProps;
+  }
+
+  public void setSaslProps(Map<String, String> saslProps) {
+    this.saslProps = saslProps;
   }
 }

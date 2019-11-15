@@ -1,13 +1,31 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.hadoop.hbase.security.provider;
 
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.ServiceLoader;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseInterfaceAudience;
 import org.apache.hadoop.hbase.util.Pair;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.yetus.audience.InterfaceAudience;
@@ -23,78 +41,85 @@ import org.slf4j.LoggerFactory;
 public class SaslClientAuthenticationProviders {
   private static final Logger LOG = LoggerFactory.getLogger(SaslClientAuthenticationProviders.class);
 
-  private static final AtomicReference<SaslClientAuthenticationProviders> holder = new AtomicReference<>();
+  public static final String SELECTOR_KEY = "hbase.client.sasl.provider.class";
 
+  private static final AtomicReference<SaslClientAuthenticationProviders> providersRef =
+      new AtomicReference<>();
+
+  private final Configuration conf;
   private final HashSet<SaslClientAuthenticationProvider> providers;
-  private SaslClientAuthenticationProviders(HashSet<SaslClientAuthenticationProvider> providers) {
+  private final ProviderSelector selector;
+
+  private SaslClientAuthenticationProviders(
+      Configuration conf, HashSet<SaslClientAuthenticationProvider> providers,
+      ProviderSelector selector) {
+    this.conf = conf;
     this.providers = providers;
+    this.selector = selector;
   }
 
   /**
    * Returns a singleton instance of {@link SaslClientAuthenticationProviders}.
    */
-  public static SaslClientAuthenticationProviders getInstance() {
-    SaslClientAuthenticationProviders providers = holder.get();
-    if (null == providers) {
-      synchronized (holder) {
-        // Someone else beat us here
-        providers = holder.get();
-        if (null != providers) {
-          return providers;
-        }
-
-        providers = createProviders();
-        holder.set(providers);
-      }
+  public static synchronized SaslClientAuthenticationProviders getInstance(Configuration conf) {
+    SaslClientAuthenticationProviders providers = providersRef.get();
+    if (providers == null) {
+      providers = instantiate(conf);
+      providersRef.set(providers);
     }
+
     return providers;
   }
 
   /**
    * Removes the cached singleton instance of {@link SaslClientAuthenticationProviders}. 
    */
-  public static void resetLoadedProviders() {
-    synchronized (holder) {
-      holder.set(null);
-    }
+  public static synchronized void reset() {
+    providersRef.set(null);
   }
 
-  static SaslClientAuthenticationProviders createProviders() {
+  static SaslClientAuthenticationProviders instantiate(Configuration conf) {
     ServiceLoader<SaslClientAuthenticationProvider> loader =
         ServiceLoader.load(SaslClientAuthenticationProvider.class);
     HashSet<SaslClientAuthenticationProvider> providers = new HashSet<>();
     for (SaslClientAuthenticationProvider provider : loader) {
       if (providers.contains(provider)) {
-        throw new RuntimeException("Already registered authentication provider with " + provider.getAuthenticationName() + ":" + provider.getAuthenticationCode()); 
+        throw new RuntimeException("Already registered authentication provider with " +
+            provider.getAuthenticationName() + ":" + provider.getAuthenticationCode()); 
       }
       providers.add(provider);
     }
-    return null;
+
+    Class<? extends ProviderSelector> clz = conf.getClass(
+        SELECTOR_KEY, DefaultProviderSelector.class, ProviderSelector.class);
+    ProviderSelector selector = null;
+    try {
+      selector = clz.newInstance();
+      selector.configure(conf, providers);
+    } catch (InstantiationException | IllegalAccessException e) {
+      throw new RuntimeException("Failed to instantiate " + clz +
+          " as the ProviderSelector defined by " + SELECTOR_KEY, e);
+    }
+
+    return new SaslClientAuthenticationProviders(conf, providers, selector);
+  }
+ 
+  public Pair<SaslClientAuthenticationProvider, Token<? extends TokenIdentifier>> selectProvider(
+      Text clusterId, UserGroupInformation clientUser) {
+    return selector.selectProvider(clusterId, clientUser);
   }
 
-  /**
-   * Selects the first matching provider for HBase client authentication from all provided tokens.  
-   */
-  public Pair<Token<? extends TokenIdentifier>, SaslClientAuthenticationProvider> selectProvider(
-      Text clusterId, Collection<Token<? extends TokenIdentifier>> tokens) {
-    if (clusterId == null) {
-      throw new NullPointerException("Null clusterId was given");
-    }
-    // TODO this mimics the current logic from AuthenticationTokenSelector, but it's not the
-    // best. We should really have some weighting to be able to judge cryptographic strength
-    // or how recent those tokens are.
+  @Override
+  public String toString() {
+    StringBuilder sb = new StringBuilder();
+    sb.append("providers=[");
+    boolean first = true;
     for (SaslClientAuthenticationProvider provider : providers) {
-      for (Token<? extends TokenIdentifier> token : tokens) {
-        // We need to check for two things:
-        //   1. This token is for the HBase cluster we want to talk to
-        //   2. We have suppporting client implementation to handle the token (the "kind" of token)
-        if (clusterId.equals(token.getService()) && provider.getTokenKind().equals(token.getKind())) {
-          LOG.trace("Returning token={} used by provider={}", token, provider);
-          return new Pair<>(token, provider);
-        }
+      if (!first) {
+        sb.append(", ");
       }
+      sb.append(provider.getClass());
     }
-    LOG.warn("No matching SASL authentication provider found from providers {} to HBase cluster {}", providers, clusterId);
-    return null;
+    return sb.append("], selector=").append(selector.getClass()).toString();
   }
 }

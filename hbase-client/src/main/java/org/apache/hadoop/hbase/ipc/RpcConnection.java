@@ -100,11 +100,16 @@ abstract class RpcConnection {
     String serverPrincipal = null;
     if (useSasl && securityInfo != null) {
       // Choose the correct Token and AuthenticationProvider for this client to use
-      SaslClientAuthenticationProviders providers = SaslClientAuthenticationProviders.getInstance();
-      Pair<Token<? extends TokenIdentifier>, SaslClientAuthenticationProvider> pair =
-          providers.selectProvider(new Text(clusterId), ticket.getTokens());
-      this.token = pair.getFirst();
-      this.provider = pair.getSecond();
+      SaslClientAuthenticationProviders providers = SaslClientAuthenticationProviders.getInstance(conf);
+      Pair<SaslClientAuthenticationProvider, Token<? extends TokenIdentifier>> pair =
+          providers.selectProvider(new Text(clusterId), ticket);
+      if (pair == null) {
+        LOG.error("Found no valid authentication method from {} with tokens={}",
+            providers.toString(), ticket.getTokens());
+        throw new RuntimeException("Found no valid authentication method from options");
+      }
+      this.provider = pair.getFirst();
+      this.token = pair.getSecond();
 
       String serverKey = securityInfo.getServerPrincipal();
       if (serverKey == null) {

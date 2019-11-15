@@ -1,0 +1,72 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.hadoop.hbase.security.provider;
+
+import java.io.IOException;
+import java.util.Map;
+
+import javax.security.sasl.SaslClient;
+
+import org.apache.hadoop.hbase.HBaseInterfaceAudience;
+import org.apache.hadoop.hbase.security.AuthMethod;
+import org.apache.hadoop.security.UserGroupInformation.AuthenticationMethod;
+import org.apache.hadoop.security.token.Token;
+import org.apache.hadoop.security.token.TokenIdentifier;
+import org.apache.yetus.audience.InterfaceAudience;
+import org.apache.yetus.audience.InterfaceStability;
+
+@InterfaceAudience.LimitedPrivate(HBaseInterfaceAudience.AUTHENTICATION)
+@InterfaceStability.Evolving
+public class SimpleSaslClientAuthenticationProvider extends AbstractSaslClientAuthenticationProvider {
+
+  @Override
+  public void configure(String serverPrincipal, Token<? extends TokenIdentifier> token, boolean fallbackAllowed,
+      Map<String, String> saslProps) {
+    return;
+  }
+
+  @Override
+  public SaslClient createClient() throws IOException {
+    return null;
+  }
+
+  @Override
+  public String getAuthenticationName() {
+    return AuthMethod.SIMPLE.name();
+  }
+
+  @Override
+  public byte getAuthenticationCode() {
+    return AuthMethod.SIMPLE.code;
+  }
+
+  @Override
+  public String getSaslMechanism() {
+    return null;
+  }
+
+  @Override
+  public AuthenticationMethod getAuthMethod() {
+    return AuthMethod.SIMPLE.authenticationMethod;
+  }
+
+  @Override
+  public AuthMethod getHBaseAuthMethod() {
+    return AuthMethod.SIMPLE;
+  }
+}
