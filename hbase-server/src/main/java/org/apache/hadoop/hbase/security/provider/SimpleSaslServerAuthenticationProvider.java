@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,27 +17,34 @@
  */
 package org.apache.hadoop.hbase.security.provider;
 
-import java.util.Set;
+import java.io.IOException;
+import java.util.Map;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.util.Pair;
-import org.apache.hadoop.io.Text;
+import javax.security.sasl.SaslServer;
+
+import org.apache.hadoop.hbase.HBaseInterfaceAudience;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.security.token.Token;
+import org.apache.hadoop.security.token.SecretManager;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.yetus.audience.InterfaceAudience;
+import org.apache.yetus.audience.InterfaceStability;
 
-@InterfaceAudience.Private
-public interface ProviderSelector {
+@InterfaceAudience.LimitedPrivate(HBaseInterfaceAudience.AUTHENTICATION)
+@InterfaceStability.Evolving
+public class SimpleSaslServerAuthenticationProvider extends SimpleSaslClientAuthenticationProvider implements SaslServerAuthenticationProvider {
 
-  /**
-   * Initializes the implementation with configuration and a set of providers available.
-   */
-  void configure(Configuration conf, Set<SaslClientAuthenticationProvider> availableProviders);
+  @Override
+  public void configureServer(SecretManager<TokenIdentifier> secretManager, Map<String, String> saslProps) {
+    return;
+  }
 
-  /**
-   * Chooses the authentication provider which should be used given the provided client context
-   * from the authentication providers passed in via {@link #configure(Configuration, Set)}.
-   */
-  Pair<SaslClientAuthenticationProvider, Token<? extends TokenIdentifier>> selectProvider(Text clusterId, UserGroupInformation ugi);
+  @Override
+  public SaslServer createServer() throws IOException {
+    return null;
+  }
+
+  @Override
+  public UserGroupInformation getUnauthenticatedUser() {
+    return null;
+  }
 }

@@ -17,27 +17,36 @@
  */
 package org.apache.hadoop.hbase.security.provider;
 
-import java.util.Set;
+import java.io.IOException;
+import java.util.Map;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.util.Pair;
-import org.apache.hadoop.io.Text;
+import javax.security.sasl.SaslServer;
+
+import org.apache.hadoop.hbase.HBaseInterfaceAudience;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.security.token.Token;
+import org.apache.hadoop.security.token.SecretManager;
 import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.yetus.audience.InterfaceAudience;
+import org.apache.yetus.audience.InterfaceStability;
 
-@InterfaceAudience.Private
-public interface ProviderSelector {
-
-  /**
-   * Initializes the implementation with configuration and a set of providers available.
-   */
-  void configure(Configuration conf, Set<SaslClientAuthenticationProvider> availableProviders);
+@InterfaceAudience.LimitedPrivate(HBaseInterfaceAudience.AUTHENTICATION)
+@InterfaceStability.Evolving
+public interface SaslServerAuthenticationProvider extends SaslClientAuthenticationProvider {
 
   /**
-   * Chooses the authentication provider which should be used given the provided client context
-   * from the authentication providers passed in via {@link #configure(Configuration, Set)}.
+   * Confgiures this provider with any necessary context.
    */
-  Pair<SaslClientAuthenticationProvider, Token<? extends TokenIdentifier>> selectProvider(Text clusterId, UserGroupInformation ugi);
+  void configureServer(SecretManager<TokenIdentifier> secretManager, Map<String, String> saslProps);
+
+  /**
+   * Creates the SaslServer to accept incoming SASL authentication requests.
+   */
+  SaslServer createServer() throws IOException;
+
+  /**
+   * Returns the user who is attempting to authenticate with HBase. This name is for informational
+   * purposes only and should not be trusted as it was not authenticated.
+   */
+  UserGroupInformation getUnauthenticatedUser();
+
 }

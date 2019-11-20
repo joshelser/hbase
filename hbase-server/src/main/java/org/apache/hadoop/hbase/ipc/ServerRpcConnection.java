@@ -50,6 +50,8 @@ import org.apache.hadoop.hbase.security.HBaseSaslRpcServer;
 import org.apache.hadoop.hbase.security.SaslStatus;
 import org.apache.hadoop.hbase.security.SaslUtil;
 import org.apache.hadoop.hbase.security.User;
+import org.apache.hadoop.hbase.security.provider.SaslServerAuthenticationProvider;
+import org.apache.hadoop.hbase.security.provider.SaslServerAuthenticationProviders;
 import org.apache.hbase.thirdparty.com.google.protobuf.BlockingService;
 import org.apache.hbase.thirdparty.com.google.protobuf.ByteInput;
 import org.apache.hbase.thirdparty.com.google.protobuf.ByteString;
@@ -108,6 +110,7 @@ abstract class ServerRpcConnection implements Closeable {
   protected CompressionCodec compressionCodec;
   protected BlockingService service;
 
+  protected SaslServerAuthenticationProvider provider;
   protected AuthMethod authMethod;
   protected boolean saslContextEstablished;
   protected boolean skipInitialSaslHandshake;
@@ -127,10 +130,12 @@ abstract class ServerRpcConnection implements Closeable {
 
   protected User user = null;
   protected UserGroupInformation ugi = null;
+  protected SaslServerAuthenticationProviders saslProviders = null;
 
   public ServerRpcConnection(RpcServer rpcServer) {
     this.rpcServer = rpcServer;
     this.callCleanup = null;
+    this.saslProviders = SaslServerAuthenticationProviders.getInstance();
   }
 
   @Override
@@ -362,7 +367,7 @@ abstract class ServerRpcConnection implements Closeable {
       try {
         if (saslServer == null) {
           saslServer =
-              new HBaseSaslRpcServer(authMethod, rpcServer.saslProps, rpcServer.secretManager);
+              new HBaseSaslRpcServer(provider, rpcServer.saslProps, rpcServer.secretManager);
           RpcServer.LOG.debug("Created SASL server with mechanism={}",
               authMethod.getMechanismName());
         }
@@ -741,12 +746,19 @@ abstract class ServerRpcConnection implements Closeable {
     }
     int version = preambleBuffer.get() & 0xFF;
     byte authbyte = preambleBuffer.get();
-    this.authMethod = AuthMethod.valueOf(authbyte);
+
     if (version != SimpleRpcServer.CURRENT_VERSION) {
       String msg = getFatalConnectionString(version, authbyte);
       doBadPreambleHandling(msg, new WrongVersionException(msg));
       return false;
     }
+    this.provider = this.saslProviders.selectProvider(authbyte);
+    if (this.provider == null) {
+      String msg = getFatalConnectionString(version, authbyte);
+      doBadPreambleHandling(msg, new BadAuthException(msg));
+      return false;
+    }
+    this.authMethod = provider.getHBaseAuthMethod();
     if (authMethod == null) {
       String msg = getFatalConnectionString(version, authbyte);
       doBadPreambleHandling(msg, new BadAuthException(msg));

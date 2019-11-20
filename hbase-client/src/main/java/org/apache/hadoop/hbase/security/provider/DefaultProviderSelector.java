@@ -9,9 +9,11 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
+import org.apache.yetus.audience.InterfaceAudience;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@InterfaceAudience.Private
 public class DefaultProviderSelector implements ProviderSelector {
   private static final Logger LOG = LoggerFactory.getLogger(DefaultProviderSelector.class);
 
