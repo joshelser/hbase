@@ -67,7 +67,7 @@ public class NettyHBaseSaslRpcClientHandler extends SimpleChannelInboundHandler<
     this.saslPromise = saslPromise;
     this.ugi = ugi;
     this.conf = conf;
-    this.saslRpcClient = new NettyHBaseSaslRpcClient(provider, token, serverPrincipal,
+    this.saslRpcClient = new NettyHBaseSaslRpcClient(conf, provider, token, serverPrincipal,
         fallbackAllowed, conf.get(
         "hbase.rpc.protection", SaslUtil.QualityOfProtection.AUTHENTICATION.name().toLowerCase()));
   }

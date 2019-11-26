@@ -56,7 +56,8 @@ public class DefaultProviderSelector implements ProviderSelector {
   }
 
   @Override
-  public Pair<SaslClientAuthenticationProvider, Token<? extends TokenIdentifier>> selectProvider(Text clusterId, UserGroupInformation ugi) {
+  public Pair<SaslClientAuthenticationProvider, Token<? extends TokenIdentifier>> selectProvider(
+      Text clusterId, UserGroupInformation ugi) {
     if (clusterId == null) {
       throw new NullPointerException("Null clusterId was given");
     }

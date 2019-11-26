@@ -20,10 +20,10 @@ package org.apache.hadoop.hbase.security.provider;
 import java.util.HashMap;
 import java.util.ServiceLoader;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
-import org.apache.hadoop.hbase.HBaseInterfaceAudience;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.yetus.audience.InterfaceAudience;
-import org.apache.yetus.audience.InterfaceStability;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,17 +31,22 @@ import org.slf4j.LoggerFactory;
 public class SaslServerAuthenticationProviders {
   private static final Logger LOG = LoggerFactory.getLogger(SaslClientAuthenticationProviders.class);
 
+  public static final String EXTRA_PROVIDERS_KEY = "hbase.server.sasl.provider.extras";
   private static final AtomicReference<SaslServerAuthenticationProviders> holder = new AtomicReference<>();
 
+  private final Configuration conf;
   private final HashMap<Byte, SaslServerAuthenticationProvider> providers;
-  private SaslServerAuthenticationProviders(HashMap<Byte, SaslServerAuthenticationProvider> providers) {
+
+  private SaslServerAuthenticationProviders(Configuration conf,
+      HashMap<Byte, SaslServerAuthenticationProvider> providers) {
+    this.conf = conf;
     this.providers = providers;
   }
 
   /**
    * Returns a singleton instance of {@link SaslClientAuthenticationProviders}.
    */
-  public static SaslServerAuthenticationProviders getInstance() {
+  public static SaslServerAuthenticationProviders getInstance(Configuration conf) {
     SaslServerAuthenticationProviders providers = holder.get();
     if (null == providers) {
       synchronized (holder) {
@@ -51,7 +56,7 @@ public class SaslServerAuthenticationProviders {
           return providers;
         }
 
-        providers = createProviders();
+        providers = createProviders(conf);
         holder.set(providers);
       }
     }
@@ -67,20 +72,74 @@ public class SaslServerAuthenticationProviders {
     }
   }
 
-  static SaslServerAuthenticationProviders createProviders() {
+  /**
+   * Adds the given provider into the map of providers if a mapping for the auth code does not
+   * already exist in the map.
+   */
+  static void addProviderIfNotExists(SaslServerAuthenticationProvider provider,
+      HashMap<Byte,SaslServerAuthenticationProvider> providers) {
+    final byte newProviderAuthCode = provider.getAuthenticationCode();
+    final SaslServerAuthenticationProvider alreadyRegisteredProvider = providers.get(
+        newProviderAuthCode);
+    if (alreadyRegisteredProvider != null) {
+      throw new RuntimeException("Trying to load SaslServerAuthenticationProvider "
+          + provider.getClass() + ", but "+ alreadyRegisteredProvider.getClass()
+          + " is already registered with the same auth code");
+    }
+    providers.put(newProviderAuthCode, provider);
+  }
+
+  /**
+   * Adds any providers defined in the configuration.
+   */
+  static void addExtraProviders(Configuration conf,
+      HashMap<Byte,SaslServerAuthenticationProvider> providers) {
+    for (String implName : conf.getStringCollection(EXTRA_PROVIDERS_KEY)) {
+      Class<?> clz;
+      try {
+        clz = Class.forName(implName);
+      } catch (ClassNotFoundException e) {
+        LOG.warn("Failed to find SaslServerAuthenticationProvider class {}", implName, e);
+        continue;
+      }
+
+      if (!SaslServerAuthenticationProvider.class.isAssignableFrom(clz)) {
+        LOG.warn("Server authentication class {} is not an instance of " 
+            + "SaslServerAuthenticationProvider", clz);
+        continue;
+      }
+
+      try {
+        SaslServerAuthenticationProvider provider =
+            (SaslServerAuthenticationProvider) clz.newInstance();
+        addProviderIfNotExists(provider, providers);
+      } catch (InstantiationException | IllegalAccessException e) {
+        LOG.warn("Failed to instantiate {}", clz, e);
+      }
+    }
+  }
+
+  /**
+   * Loads server authentication providers from the classpath and configuration, and then creates
+   * the SaslServerAuthenticationProviders instance.
+   */
+  static SaslServerAuthenticationProviders createProviders(Configuration conf) {
     ServiceLoader<SaslServerAuthenticationProvider> loader =
         ServiceLoader.load(SaslServerAuthenticationProvider.class);
     HashMap<Byte,SaslServerAuthenticationProvider> providers = new HashMap<>();
     for (SaslServerAuthenticationProvider provider : loader) {
-      final byte newProviderAuthCode = provider.getAuthenticationCode();
-      final SaslServerAuthenticationProvider alreadyRegisteredProvider = providers.get(newProviderAuthCode);
-      if (alreadyRegisteredProvider != null) {
-        throw new RuntimeException("Trying to load SaslServerAuthenticationProvider " + provider.getClass()
-            + alreadyRegisteredProvider.getClass() + " is already registered with the same auth code");
-      }
-      providers.put(newProviderAuthCode, provider);
+      addProviderIfNotExists(provider, providers);
     }
-    return new SaslServerAuthenticationProviders(providers);
+
+    addExtraProviders(conf, providers);
+
+    if (LOG.isTraceEnabled()) {
+      String loadedProviders = providers.values().stream()
+          .map((provider) -> provider.getClass().getName())
+          .collect(Collectors.joining(", "));
+      LOG.trace("Found SaslServerAuthenticationProviders {}", loadedProviders);
+    }
+    return new SaslServerAuthenticationProviders(conf, providers);
   }
 
   /**

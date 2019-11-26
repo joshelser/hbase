@@ -34,17 +34,8 @@ import org.apache.yetus.audience.InterfaceStability;
 public class SimpleSaslServerAuthenticationProvider extends SimpleSaslClientAuthenticationProvider implements SaslServerAuthenticationProvider {
 
   @Override
-  public void configureServer(SecretManager<TokenIdentifier> secretManager, Map<String, String> saslProps) {
-    return;
-  }
-
-  @Override
-  public SaslServer createServer() throws IOException {
-    return null;
-  }
-
-  @Override
-  public UserGroupInformation getUnauthenticatedUser() {
+  public SaslServer createServer(SecretManager<TokenIdentifier> secretManager,
+      Map<String, String> saslProps) throws IOException {
     return null;
   }
 }

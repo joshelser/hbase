@@ -30,6 +30,7 @@ import javax.security.sasl.RealmChoiceCallback;
 import javax.security.sasl.Sasl;
 import javax.security.sasl.SaslClient;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseInterfaceAudience;
 import org.apache.hadoop.hbase.security.AuthMethod;
 import org.apache.hadoop.hbase.security.SaslUtil;
@@ -48,28 +49,16 @@ public class DigestSaslClientAuthenticationProvider extends AbstractSaslClientAu
   public static final String MECHANISM = "DIGEST-MD5";
   private static final AuthMethod AUTH_METHOD = AuthMethod.DIGEST;
 
-  private String serverPrincipal;
-  private Token<? extends TokenIdentifier> token;
-  private boolean fallbackAllowed;
-  private Map<String, String> saslProps;
-
   public static String getMechanism() {
     return MECHANISM;
   }
 
   @Override
-  public void configure(String serverPrincipal, Token<? extends TokenIdentifier> token, boolean fallbackAllowed,
-      Map<String, String> saslProps) {
-    this.serverPrincipal = serverPrincipal;
-    this.token = token;
-    this.fallbackAllowed = fallbackAllowed;
-    this.saslProps = saslProps;
-  }
-
-  @Override
-  public SaslClient createClient() throws IOException {
-    return Sasl.createSaslClient(new String[] { MECHANISM }, null, null, SaslUtil.SASL_DEFAULT_REALM, saslProps,
-        new DigestSaslClientCallbackHandler(token));
+  public SaslClient createClient(Configuration conf, String serverPrincipal,
+      Token<? extends TokenIdentifier> token, boolean fallbackAllowed,
+      Map<String, String> saslProps) throws IOException {
+    return Sasl.createSaslClient(new String[] { MECHANISM }, null, null,
+        SaslUtil.SASL_DEFAULT_REALM, saslProps, new DigestSaslClientCallbackHandler(token));
   }
 
   @Override
@@ -144,37 +133,5 @@ public class DigestSaslClientAuthenticationProvider extends AbstractSaslClientAu
         rc.setText(rc.getDefaultText());
       }
     }
-  }
-
-  public String getServerPrincipal() {
-    return serverPrincipal;
-  }
-
-  public void setServerPrincipal(String serverPrincipal) {
-    this.serverPrincipal = serverPrincipal;
-  }
-
-  public Token<? extends TokenIdentifier> getToken() {
-    return token;
-  }
-
-  public void setToken(Token<? extends TokenIdentifier> token) {
-    this.token = token;
-  }
-
-  public boolean isFallbackAllowed() {
-    return fallbackAllowed;
-  }
-
-  public void setFallbackAllowed(boolean fallbackAllowed) {
-    this.fallbackAllowed = fallbackAllowed;
-  }
-
-  public Map<String, String> getSaslProps() {
-    return saslProps;
-  }
-
-  public void setSaslProps(Map<String, String> saslProps) {
-    this.saslProps = saslProps;
   }
 }

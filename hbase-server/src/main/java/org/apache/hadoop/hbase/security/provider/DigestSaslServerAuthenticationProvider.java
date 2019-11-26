@@ -32,28 +32,14 @@ public class DigestSaslServerAuthenticationProvider extends DigestSaslClientAuth
     implements SaslServerAuthenticationProvider {
   private static final Logger LOG = LoggerFactory.getLogger(DigestSaslServerAuthenticationProvider.class);
 
-  private SecretManager<TokenIdentifier> secretManager;
-  private UserGroupInformation unauthenticatedUser;
-
   @Override
-  public SaslServer createServer() throws IOException {
+  public SaslServer createServer(SecretManager<TokenIdentifier> secretManager,
+      Map<String, String> saslProps) throws IOException {
     if (secretManager == null) {
       throw new AccessDeniedException("Server is not configured to do DIGEST authentication.");
     }
     return Sasl.createSaslServer(getSaslMechanism(), null,
-      SaslUtil.SASL_DEFAULT_REALM, getSaslProps(), new SaslDigestCallbackHandler(secretManager));
-  }
-
-  @Override
-  public void configureServer(SecretManager<TokenIdentifier> secretManager, Map<String, String> saslProps) {
-    this.secretManager = secretManager;
-    setSaslProps(saslProps);
-    this.unauthenticatedUser = null;
-  }
-
-  @Override
-  public UserGroupInformation getUnauthenticatedUser() {
-    return unauthenticatedUser;
+      SaslUtil.SASL_DEFAULT_REALM, saslProps, new SaslDigestCallbackHandler(secretManager));
   }
 
   /** CallbackHandler for SASL DIGEST-MD5 mechanism */
@@ -91,7 +77,6 @@ public class DigestSaslServerAuthenticationProvider extends DigestSaslClientAuth
         TokenIdentifier tokenIdentifier = HBaseSaslRpcServer.getIdentifier(nc.getDefaultName(), secretManager);
         char[] password = getPassword(tokenIdentifier);
         UserGroupInformation user = tokenIdentifier.getUser(); // may throw exception
-        unauthenticatedUser = user;
         if (LOG.isTraceEnabled()) {
           LOG.trace("SASL server DIGEST-MD5 callback: setting password " + "for client: " +
               tokenIdentifier.getUser());

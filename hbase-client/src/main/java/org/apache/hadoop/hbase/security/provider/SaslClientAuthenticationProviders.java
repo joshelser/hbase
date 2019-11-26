@@ -20,6 +20,7 @@ package org.apache.hadoop.hbase.security.provider;
 import java.util.HashSet;
 import java.util.ServiceLoader;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseInterfaceAudience;
@@ -42,18 +43,16 @@ public class SaslClientAuthenticationProviders {
   private static final Logger LOG = LoggerFactory.getLogger(SaslClientAuthenticationProviders.class);
 
   public static final String SELECTOR_KEY = "hbase.client.sasl.provider.class";
+  public static final String EXTRA_PROVIDERS_KEY = "hbase.client.sasl.provider.extras";
 
   private static final AtomicReference<SaslClientAuthenticationProviders> providersRef =
       new AtomicReference<>();
 
-  private final Configuration conf;
   private final HashSet<SaslClientAuthenticationProvider> providers;
   private final ProviderSelector selector;
 
-  private SaslClientAuthenticationProviders(
-      Configuration conf, HashSet<SaslClientAuthenticationProvider> providers,
+  private SaslClientAuthenticationProviders(HashSet<SaslClientAuthenticationProvider> providers,
       ProviderSelector selector) {
-    this.conf = conf;
     this.providers = providers;
     this.selector = selector;
   }
@@ -78,30 +77,99 @@ public class SaslClientAuthenticationProviders {
     providersRef.set(null);
   }
 
+  /**
+   * Adds the given {@code provider} to the set, only if an equivalent provider does not
+   * already exist in the set.
+   */
+  static void addProviderIfNotExists(SaslClientAuthenticationProvider provider,
+      HashSet<SaslClientAuthenticationProvider> providers) {
+    if (providers.contains(provider)) {
+    throw new RuntimeException("Already registered authentication provider with " +
+        provider.getAuthenticationName() + ":" + provider.getAuthenticationCode()); 
+    }
+    providers.add(provider);
+  }
+
+  /**
+   * Instantiates the ProviderSelector implementation from the provided configuration.
+   */
+  static ProviderSelector instantiateSelector(Configuration conf,
+      HashSet<SaslClientAuthenticationProvider> providers) {
+    Class<? extends ProviderSelector> clz = conf.getClass(
+        SELECTOR_KEY, DefaultProviderSelector.class, ProviderSelector.class);
+    try {
+      ProviderSelector selector = clz.newInstance();
+      selector.configure(conf, providers);
+      if (LOG.isTraceEnabled()) {
+        LOG.trace("Loaded ProviderSelector {}", selector.getClass());
+      }
+      return selector;
+    } catch (InstantiationException | IllegalAccessException e) {
+      throw new RuntimeException("Failed to instantiate " + clz +
+          " as the ProviderSelector defined by " + SELECTOR_KEY, e);
+    }
+  }
+
+  /**
+   * Extracts and instantiates authentication providers from the configuration.
+   */
+  static void addExplicitProviders(Configuration conf,
+      HashSet<SaslClientAuthenticationProvider> providers) {
+    for(String implName : conf.getStringCollection(EXTRA_PROVIDERS_KEY)) {
+      Class<?> clz;
+      // Load the class from the config
+      try {
+        clz = Class.forName(implName);
+      } catch (ClassNotFoundException e) {
+        LOG.warn("Failed to load SaslClientAuthenticationProvider {}", implName, e);
+        continue;
+      }
+
+      // Make sure it's the right type
+      if (!SaslClientAuthenticationProvider.class.isAssignableFrom(clz)) {
+        LOG.warn("Ignoring SaslClientAuthenticationProvider {} because it is not an instance of"
+            + " SaslClientAuthenticationProvider", clz);
+        continue;
+      }
+
+      // Instantiate it
+      SaslClientAuthenticationProvider provider;
+      try {
+        provider = (SaslClientAuthenticationProvider) clz.newInstance();
+      } catch (InstantiationException | IllegalAccessException e) {
+        LOG.warn("Failed to instantiate SaslClientAuthenticationProvider {}", clz, e);
+        continue;
+      }
+
+      // Add it to our set, only if it doesn't conflict with something else we've
+      // already registered.
+      addProviderIfNotExists(provider, providers);
+    }
+  }
+
+  /**
+   * Instantiates all client authentication providers and returns an instance of
+   * {@link SaslClientAuthenticationProviders}.
+   */
   static SaslClientAuthenticationProviders instantiate(Configuration conf) {
     ServiceLoader<SaslClientAuthenticationProvider> loader =
         ServiceLoader.load(SaslClientAuthenticationProvider.class);
     HashSet<SaslClientAuthenticationProvider> providers = new HashSet<>();
     for (SaslClientAuthenticationProvider provider : loader) {
-      if (providers.contains(provider)) {
-        throw new RuntimeException("Already registered authentication provider with " +
-            provider.getAuthenticationName() + ":" + provider.getAuthenticationCode()); 
-      }
-      providers.add(provider);
+      addProviderIfNotExists(provider, providers);
     }
 
-    Class<? extends ProviderSelector> clz = conf.getClass(
-        SELECTOR_KEY, DefaultProviderSelector.class, ProviderSelector.class);
-    ProviderSelector selector = null;
-    try {
-      selector = clz.newInstance();
-      selector.configure(conf, providers);
-    } catch (InstantiationException | IllegalAccessException e) {
-      throw new RuntimeException("Failed to instantiate " + clz +
-          " as the ProviderSelector defined by " + SELECTOR_KEY, e);
-    }
+    addExplicitProviders(conf, providers);
 
-    return new SaslClientAuthenticationProviders(conf, providers, selector);
+    ProviderSelector selector = instantiateSelector(conf, providers);
+
+    if (LOG.isTraceEnabled()) {
+      String loadedProviders = providers.stream()
+          .map((provider) -> provider.getClass().getName())
+          .collect(Collectors.joining(", "));
+      LOG.trace("Found SaslClientAuthenticationProviders {}", loadedProviders);
+    }
+    return new SaslClientAuthenticationProviders(providers, selector);
   }
  
   public Pair<SaslClientAuthenticationProvider, Token<? extends TokenIdentifier>> selectProvider(

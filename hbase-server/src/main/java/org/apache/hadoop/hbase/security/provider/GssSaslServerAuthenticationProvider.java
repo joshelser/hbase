@@ -45,10 +45,9 @@ import org.slf4j.LoggerFactory;
 public class GssSaslServerAuthenticationProvider extends GssSaslClientAuthenticationProvider implements SaslServerAuthenticationProvider {
   private static final Logger LOG = LoggerFactory.getLogger(GssSaslServerAuthenticationProvider.class);
 
-  private SecretManager<TokenIdentifier> secretManager;
-
   @Override
-  public SaslServer createServer() throws IOException {
+  public SaslServer createServer(SecretManager<TokenIdentifier> secretManager,
+      Map<String, String> saslProps) throws IOException {
     UserGroupInformation current = UserGroupInformation.getCurrentUser();
     String fullName = current.getUserName();
     if (LOG.isDebugEnabled()) {
@@ -64,25 +63,13 @@ public class GssSaslServerAuthenticationProvider extends GssSaslClientAuthentica
         @Override
         public SaslServer run() throws SaslException {
           return Sasl.createSaslServer(getSaslMechanism(), names[0],
-            names[1], getSaslProps(), new SaslGssCallbackHandler());
+            names[1], saslProps, new SaslGssCallbackHandler());
         }
       });
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new RuntimeException("Failed to construct GSS SASL server");
     }
-  }
-
-  @Override
-  public void configureServer(SecretManager<TokenIdentifier> secretManager, Map<String, String> saslProps) {
-    this.secretManager = secretManager;
-    setSaslProps(saslProps);
-  }
-
-  @Override
-  public UserGroupInformation getUnauthenticatedUser() {
-    // Not applicable for Kerberos.
-    return null;
   }
 
   /** CallbackHandler for SASL GSSAPI Kerberos mechanism */

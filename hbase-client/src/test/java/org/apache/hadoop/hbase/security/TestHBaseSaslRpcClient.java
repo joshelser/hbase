@@ -28,6 +28,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
+import java.util.Map;
 
 import javax.security.auth.callback.Callback;
 import javax.security.auth.callback.NameCallback;
@@ -39,7 +40,9 @@ import javax.security.sasl.RealmChoiceCallback;
 import javax.security.sasl.Sasl;
 import javax.security.sasl.SaslClient;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseClassTestRule;
+import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.security.provider.DigestSaslClientAuthenticationProvider;
 import org.apache.hadoop.hbase.security.provider.DigestSaslClientAuthenticationProvider.DigestSaslClientCallbackHandler;
 import org.apache.hadoop.hbase.security.provider.GssSaslClientAuthenticationProvider;
@@ -94,7 +97,7 @@ public class TestHBaseSaslRpcClient {
         DEFAULT_USER_PASSWORD);
     DigestSaslClientAuthenticationProvider provider = new DigestSaslClientAuthenticationProvider();
     for (SaslUtil.QualityOfProtection qop : SaslUtil.QualityOfProtection.values()) {
-      String negotiatedQop = new HBaseSaslRpcClient(provider, token,
+      String negotiatedQop = new HBaseSaslRpcClient(HBaseConfiguration.create(), provider, token,
           "principal/host@DOMAIN.COM", false, qop.name(), false) {
         public String getQop() {
           return saslProps.get(Sasl.QOP);
@@ -202,11 +205,13 @@ public class TestHBaseSaslRpcClient {
 
     DigestSaslClientAuthenticationProvider provider = new DigestSaslClientAuthenticationProvider() {
       @Override
-      public SaslClient createClient() {
+      public SaslClient createClient(Configuration conf, String serverPrincipal,
+          Token<? extends TokenIdentifier> token, boolean fallbackAllowed,
+          Map<String, String> saslProps) {
         return Mockito.mock(SaslClient.class);
       }
     };
-    HBaseSaslRpcClient rpcClient = new HBaseSaslRpcClient(provider,
+    HBaseSaslRpcClient rpcClient = new HBaseSaslRpcClient(HBaseConfiguration.create(), provider,
         createTokenMockWithCredentials(principal, password), principal, false);
 
     try {
@@ -230,11 +235,13 @@ public class TestHBaseSaslRpcClient {
     try {
       DigestSaslClientAuthenticationProvider provider = new DigestSaslClientAuthenticationProvider() {
         @Override
-        public SaslClient createClient() {
+        public SaslClient createClient(Configuration conf, String serverPrincipal,
+            Token<? extends TokenIdentifier> token, boolean fallbackAllowed,
+            Map<String, String> saslProps) {
           return null;
         }
       };
-      new HBaseSaslRpcClient(provider,
+      new HBaseSaslRpcClient(HBaseConfiguration.create(), provider,
           createTokenMockWithCredentials(principal, password), principal, false);
       return false;
     } catch (IOException ex) {
@@ -255,7 +262,8 @@ public class TestHBaseSaslRpcClient {
   private boolean assertSuccessCreationDigestPrincipal(String principal, String password) {
     HBaseSaslRpcClient rpcClient = null;
     try {
-      rpcClient = new HBaseSaslRpcClient(new DigestSaslClientAuthenticationProvider(),
+      rpcClient = new HBaseSaslRpcClient(HBaseConfiguration.create(),
+          new DigestSaslClientAuthenticationProvider(),
           createTokenMockWithCredentials(principal, password), principal, false);
     } catch(Exception ex) {
       LOG.error(ex.getMessage(), ex);
@@ -275,7 +283,8 @@ public class TestHBaseSaslRpcClient {
 
   private HBaseSaslRpcClient createSaslRpcClientForKerberos(String principal)
       throws IOException {
-    return new HBaseSaslRpcClient(new GssSaslClientAuthenticationProvider(), createTokenMock(),
+    return new HBaseSaslRpcClient(HBaseConfiguration.create(),
+        new GssSaslClientAuthenticationProvider(), createTokenMock(),
         principal, false);
   }
 
@@ -292,7 +301,8 @@ public class TestHBaseSaslRpcClient {
 
   private HBaseSaslRpcClient createSaslRpcClientSimple(String principal, String password)
       throws IOException {
-    return new HBaseSaslRpcClient(new SimpleSaslClientAuthenticationProvider(), createTokenMock(), principal, false);
+    return new HBaseSaslRpcClient(HBaseConfiguration.create(), new SimpleSaslClientAuthenticationProvider(),
+        createTokenMock(), principal, false);
   }
 
   @SuppressWarnings("unchecked")

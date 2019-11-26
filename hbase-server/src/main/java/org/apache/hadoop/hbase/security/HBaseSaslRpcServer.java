@@ -50,8 +50,7 @@ public class HBaseSaslRpcServer {
 
   public HBaseSaslRpcServer(SaslServerAuthenticationProvider provider, Map<String, String> saslProps,
       SecretManager<TokenIdentifier> secretManager) throws IOException {
-    provider.configureServer(secretManager, saslProps);
-    saslServer = provider.createServer();
+    saslServer = provider.createServer(secretManager, saslProps);
   }
 
   public boolean isComplete() {

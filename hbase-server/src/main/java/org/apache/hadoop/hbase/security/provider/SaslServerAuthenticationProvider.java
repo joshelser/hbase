@@ -34,19 +34,9 @@ import org.apache.yetus.audience.InterfaceStability;
 public interface SaslServerAuthenticationProvider extends SaslClientAuthenticationProvider {
 
   /**
-   * Confgiures this provider with any necessary context.
-   */
-  void configureServer(SecretManager<TokenIdentifier> secretManager, Map<String, String> saslProps);
-
-  /**
    * Creates the SaslServer to accept incoming SASL authentication requests.
    */
-  SaslServer createServer() throws IOException;
-
-  /**
-   * Returns the user who is attempting to authenticate with HBase. This name is for informational
-   * purposes only and should not be trusted as it was not authenticated.
-   */
-  UserGroupInformation getUnauthenticatedUser();
+  SaslServer createServer(SecretManager<TokenIdentifier> secretManager,
+      Map<String, String> saslProps) throws IOException;
 
 }

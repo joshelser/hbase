@@ -5,6 +5,7 @@ import java.util.Map;
 
 import javax.security.sasl.SaslClient;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseInterfaceAudience;
 import org.apache.hadoop.hbase.security.AuthMethod;
 import org.apache.hadoop.io.Text;
@@ -18,17 +19,20 @@ import org.apache.yetus.audience.InterfaceStability;
  * Encapsulation of client-side logic to authenticate to HBase via some means over SASL.
  * Implementations should not directly implement this interface, but instead extend
  * {@link AbstractSaslClientAuthenticationProvider}.
+ *
+ * Implementations of this interface must make an implementation of {link {@link #hashCode()}
+ * which returns the same value across multiple instances of the provider implementation.
  */
 @InterfaceAudience.LimitedPrivate(HBaseInterfaceAudience.AUTHENTICATION)
 @InterfaceStability.Evolving
 public interface SaslClientAuthenticationProvider {
 
-  void configure(String serverPrincipal, Token<? extends TokenIdentifier> token, boolean fallbackAllowed, Map<String, String> saslProps);
-
   /**
    * Creates the SASL client instance for this auth'n method.
    */
-  SaslClient createClient() throws IOException;
+  SaslClient createClient(Configuration conf, String serverPrincipal,
+      Token<? extends TokenIdentifier> token, boolean fallbackAllowed,
+      Map<String, String> saslProps) throws IOException;
 
   /**
    * Returns the unique name to identify this authentication method among other HBase auth methods.

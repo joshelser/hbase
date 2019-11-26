@@ -22,6 +22,7 @@ import java.util.Map;
 
 import javax.security.sasl.SaslClient;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseInterfaceAudience;
 import org.apache.hadoop.hbase.security.AuthMethod;
 import org.apache.hadoop.security.UserGroupInformation.AuthenticationMethod;
@@ -35,13 +36,9 @@ import org.apache.yetus.audience.InterfaceStability;
 public class SimpleSaslClientAuthenticationProvider extends AbstractSaslClientAuthenticationProvider {
 
   @Override
-  public void configure(String serverPrincipal, Token<? extends TokenIdentifier> token, boolean fallbackAllowed,
-      Map<String, String> saslProps) {
-    return;
-  }
-
-  @Override
-  public SaslClient createClient() throws IOException {
+  public SaslClient createClient(Configuration conf, String serverPrincipal,
+      Token<? extends TokenIdentifier> token, boolean fallbackAllowed,
+      Map<String, String> saslProps) throws IOException {
     return null;
   }
 

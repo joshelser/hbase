@@ -135,7 +135,7 @@ abstract class ServerRpcConnection implements Closeable {
   public ServerRpcConnection(RpcServer rpcServer) {
     this.rpcServer = rpcServer;
     this.callCleanup = null;
-    this.saslProviders = SaslServerAuthenticationProviders.getInstance();
+    this.saslProviders = SaslServerAuthenticationProviders.getInstance(rpcServer.getConf());
   }
 
   @Override
