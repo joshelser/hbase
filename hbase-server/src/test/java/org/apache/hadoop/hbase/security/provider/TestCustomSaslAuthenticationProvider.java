@@ -120,6 +120,10 @@ public class TestCustomSaslAuthenticationProvider {
     return password;
   }
 
+  /**
+   * A custom tokenidentifier for our custom auth'n method. Unique from the TokenIdentifier
+   * used for delegation tokens.
+   */
   public static class PasswordAuthTokenIdentifier extends TokenIdentifier {
     public static final Text PASSWORD_AUTH_TOKEN = new Text("HBASE_PASSWORD_TEST_TOKEN");
     private String username;
@@ -163,11 +167,11 @@ public class TestCustomSaslAuthenticationProvider {
   }
 
   /**
-   * Client provider that pulls password out of configuration.
+   * Client provider that finds custom Token in the user's UGI and authenticates with the server
+   * via DIGEST-MD5 using that password.
    */
   public static class InMemoryClientProvider extends AbstractSaslClientAuthenticationProvider {
     public static final byte CODE = 42;
-    public static final String USER_PASSWORD_KEY = "hbase.client.user.password";
 
     @Override
     public SaslClient createClient(Configuration conf, String serverPrincipal,
@@ -210,6 +214,10 @@ public class TestCustomSaslAuthenticationProvider {
       return AuthenticationMethod.TOKEN;
     }
 
+    /**
+     * Sasl CallbackHandler which extracts information from our custom token and places
+     * it into the Sasl objects.
+     */
     public class InMemoryClientProviderCallbackHandler implements CallbackHandler {
       private final Token<? extends TokenIdentifier> token;
       public InMemoryClientProviderCallbackHandler(Token<? extends TokenIdentifier> token) {
@@ -258,7 +266,7 @@ public class TestCustomSaslAuthenticationProvider {
   }
 
   /**
-   * Server provider which validates credentials from the in-memory db.
+   * Server provider which validates credentials from an in-memory database.
    */
   public static class InMemoryServerProvider extends InMemoryClientProvider implements SaslServerAuthenticationProvider {
 
@@ -270,9 +278,12 @@ public class TestCustomSaslAuthenticationProvider {
         new InMemoryServerProviderCallbackHandler());
     }
 
+    /**
+     * Pulls the correct password for the user who started the SASL handshake so that SASL
+     * can validate that the user provided the right password.
+     */
     private class InMemoryServerProviderCallbackHandler implements CallbackHandler {
 
-      /** {@inheritDoc} */
       @Override
       public void handle(Callback[] callbacks) throws InvalidToken, UnsupportedCallbackException {
         NameCallback nc = null;
@@ -345,6 +356,10 @@ public class TestCustomSaslAuthenticationProvider {
     }
   }
 
+  /**
+   * Custom provider which can select our custom provider, amongst other tokens which
+   * may be available.
+   */
   public static class InMemoryProviderSelector extends DefaultProviderSelector {
     private InMemoryClientProvider inMemoryProvider;
 
@@ -431,7 +446,6 @@ public class TestCustomSaslAuthenticationProvider {
       CLUSTER.shutdown();
       CLUSTER = null;
     }
-
     UTIL.shutdownMiniZKCluster();
   }
 
