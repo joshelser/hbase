@@ -34,6 +34,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseInterfaceAudience;
 import org.apache.hadoop.hbase.security.AuthMethod;
 import org.apache.hadoop.hbase.security.SaslUtil;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.RPCProtos.UserInformation;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.UserGroupInformation.AuthenticationMethod;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
@@ -79,11 +81,6 @@ public class DigestSaslClientAuthenticationProvider extends AbstractSaslClientAu
   @Override
   public AuthenticationMethod getAuthMethod() {
     return AUTH_METHOD.authenticationMethod;
-  }
-
-  @Override
-  public AuthMethod getHBaseAuthMethod() {
-    return AUTH_METHOD;
   }
 
   public static class DigestSaslClientCallbackHandler implements CallbackHandler {
@@ -133,5 +130,15 @@ public class DigestSaslClientAuthenticationProvider extends AbstractSaslClientAu
         rc.setText(rc.getDefaultText());
       }
     }
+  }
+
+  @Override
+  public UserInformation getUserInfo(UserGroupInformation user) {
+    return null;
+  }
+
+  @Override
+  public boolean isKerberos() {
+    return false;
   }
 }

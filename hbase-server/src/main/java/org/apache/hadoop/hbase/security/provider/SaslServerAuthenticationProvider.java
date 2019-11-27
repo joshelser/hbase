@@ -29,6 +29,10 @@ import org.apache.hadoop.security.token.TokenIdentifier;
 import org.apache.yetus.audience.InterfaceAudience;
 import org.apache.yetus.audience.InterfaceStability;
 
+/**
+ * Encapsulates the server-side logic to authenticate a client over SASL. Tied one-to-one to
+ * a single client authentication implementation.
+ */
 @InterfaceAudience.LimitedPrivate(HBaseInterfaceAudience.AUTHENTICATION)
 @InterfaceStability.Evolving
 public interface SaslServerAuthenticationProvider extends SaslClientAuthenticationProvider {
@@ -39,4 +43,8 @@ public interface SaslServerAuthenticationProvider extends SaslClientAuthenticati
   SaslServer createServer(SecretManager<TokenIdentifier> secretManager,
       Map<String, String> saslProps) throws IOException;
 
+  boolean supportsProtocolAuthentication();
+
+  UserGroupInformation getAuthorizedUgi(String authzId,
+      SecretManager<TokenIdentifier> secretManager) throws IOException;
 }

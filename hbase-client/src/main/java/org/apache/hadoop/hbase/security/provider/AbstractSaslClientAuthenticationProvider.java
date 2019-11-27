@@ -3,6 +3,7 @@ package org.apache.hadoop.hbase.security.provider;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.hadoop.hbase.HBaseInterfaceAudience;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.yetus.audience.InterfaceAudience;
 import org.apache.yetus.audience.InterfaceStability;
 
@@ -33,5 +34,16 @@ public abstract class AbstractSaslClientAuthenticationProvider implements SaslCl
         .append(getAuthenticationName())
         .append(getAuthenticationCode())
         .toHashCode();
+  }
+
+  @Override
+  public UserGroupInformation unwrapUgi(UserGroupInformation ugi) {
+    // Unwrap the UGI with the real user when we're using Kerberos auth
+    if (isKerberos() && ugi != null && ugi.getRealUser() != null) {
+      return ugi.getRealUser();
+    }
+
+    // Otherwise, use the UGI we were given
+    return ugi;
   }
 }

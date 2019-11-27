@@ -38,4 +38,17 @@ public class SimpleSaslServerAuthenticationProvider extends SimpleSaslClientAuth
       Map<String, String> saslProps) throws IOException {
     return null;
   }
+
+  @Override
+  public boolean supportsProtocolAuthentication() {
+    return true;
+  }
+
+  @Override
+  public UserGroupInformation getAuthorizedUgi(String authzId, SecretManager<TokenIdentifier> secretManager)
+      throws IOException {
+    UserGroupInformation ugi = UserGroupInformation.createRemoteUser(authzId);
+    ugi.setAuthenticationMethod(getAuthMethod());
+    return ugi;
+  }
 }

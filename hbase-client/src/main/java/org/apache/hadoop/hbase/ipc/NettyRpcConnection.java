@@ -159,7 +159,7 @@ class NettyRpcConnection extends RpcConnection {
         @Override
         public void run() {
           try {
-            if (shouldAuthenticateOverKrb()) {
+            if (provider.isKerberos()) {
               relogin();
             }
           } catch (IOException e) {
@@ -183,7 +183,7 @@ class NettyRpcConnection extends RpcConnection {
   }
 
   private void saslNegotiate(final Channel ch) {
-    UserGroupInformation ticket = getUGI();
+    UserGroupInformation ticket = provider.unwrapUgi(remoteId.getTicket().getUGI());
     if (ticket == null) {
       failInit(ch, new FatalConnectionException("ticket/user is null"));
       return;

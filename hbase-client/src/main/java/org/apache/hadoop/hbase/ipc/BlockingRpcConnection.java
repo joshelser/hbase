@@ -391,7 +391,7 @@ class BlockingRpcConnection extends RpcConnection implements Runnable {
     user.doAs(new PrivilegedExceptionAction<Object>() {
       @Override
       public Object run() throws IOException, InterruptedException {
-        if (shouldAuthenticateOverKrb()) {
+        if (provider.isKerberos()) {
           if (currRetries < maxRetries) {
             if (LOG.isDebugEnabled()) {
               LOG.debug("Exception encountered while connecting to " +
@@ -461,7 +461,7 @@ class BlockingRpcConnection extends RpcConnection implements Runnable {
         if (useSasl) {
           final InputStream in2 = inStream;
           final OutputStream out2 = outStream;
-          UserGroupInformation ticket = getUGI();
+          UserGroupInformation ticket = provider.unwrapUgi(remoteId.ticket.getUGI());
           boolean continueSasl;
           if (ticket == null) {
             throw new FatalConnectionException("ticket/user is null");

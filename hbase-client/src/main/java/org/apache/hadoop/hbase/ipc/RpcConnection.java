@@ -24,7 +24,6 @@ import java.util.concurrent.TimeUnit;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.codec.Codec;
-import org.apache.hadoop.hbase.security.AuthMethod;
 import org.apache.hadoop.hbase.security.SecurityInfo;
 import org.apache.hadoop.hbase.security.provider.SaslClientAuthenticationProvider;
 import org.apache.hadoop.hbase.security.provider.SaslClientAuthenticationProviders;
@@ -55,8 +54,6 @@ abstract class RpcConnection {
   private static final Logger LOG = LoggerFactory.getLogger(RpcConnection.class);
 
   protected final ConnectionId remoteId;
-
-  protected final AuthMethod authMethod;
 
   protected final boolean useSasl;
 
@@ -121,9 +118,7 @@ abstract class RpcConnection {
         LOG.debug("RPC Server Kerberos principal name for service=" + remoteId.getServiceName()
             + " is " + serverPrincipal);
       }
-      this.authMethod = provider.getHBaseAuthMethod();
     } else if (!useSasl) {
-      authMethod = AuthMethod.SIMPLE;
       this.token = null;
     } else {
       throw new RuntimeException("Could not compute valid client authentication provider");
@@ -131,57 +126,10 @@ abstract class RpcConnection {
 
     this.serverPrincipal = serverPrincipal;
 
-    // Log if debug AND non-default auth, else if trace enabled.
-    // No point logging obvious.
-    if ((LOG.isDebugEnabled() && !authMethod.equals(AuthMethod.SIMPLE)) ||
-        LOG.isTraceEnabled()) {
-      // Only log if not default auth.
-      LOG.debug("Use " + authMethod + " authentication for service " + remoteId.serviceName
-          + ", sasl=" + useSasl);
-    }
+    LOG.debug("Using {} authentication for service{}, sasl={}", provider.getAuthenticationName(),
+        remoteId.serviceName, useSasl);
     reloginMaxBackoff = conf.getInt("hbase.security.relogin.maxbackoff", 5000);
     this.remoteId = remoteId;
-  }
-
-  private UserInformation getUserInfo(UserGroupInformation ugi) {
-    if (ugi == null || authMethod == AuthMethod.DIGEST) {
-      // Don't send user for token auth
-      return null;
-    }
-    UserInformation.Builder userInfoPB = UserInformation.newBuilder();
-    if (authMethod == AuthMethod.KERBEROS) {
-      // Send effective user for Kerberos auth
-      userInfoPB.setEffectiveUser(ugi.getUserName());
-    } else if (authMethod == AuthMethod.SIMPLE) {
-      // Send both effective user and real user for simple auth
-      userInfoPB.setEffectiveUser(ugi.getUserName());
-      if (ugi.getRealUser() != null) {
-        userInfoPB.setRealUser(ugi.getRealUser().getUserName());
-      }
-    }
-    return userInfoPB.build();
-  }
-
-  protected UserGroupInformation getUGI() {
-    UserGroupInformation ticket = remoteId.getTicket().getUGI();
-    if (authMethod == AuthMethod.KERBEROS) {
-      if (ticket != null && ticket.getRealUser() != null) {
-        ticket = ticket.getRealUser();
-      }
-    }
-    return ticket;
-  }
-
-  protected boolean shouldAuthenticateOverKrb() throws IOException {
-    UserGroupInformation loginUser = UserGroupInformation.getLoginUser();
-    UserGroupInformation currentUser = UserGroupInformation.getCurrentUser();
-    UserGroupInformation realUser = currentUser.getRealUser();
-    return authMethod == AuthMethod.KERBEROS && loginUser != null &&
-    // Make sure user logged in using Kerberos either keytab or TGT
-        loginUser.hasKerberosCredentials() &&
-        // relogin only in case it is the login user (e.g. JT)
-        // or superuser (like oozie).
-        (loginUser.equals(currentUser) || loginUser.equals(realUser));
   }
 
   protected void relogin() throws IOException {
@@ -218,7 +166,7 @@ abstract class RpcConnection {
     System.arraycopy(HConstants.RPC_HEADER, 0, preamble, 0, rpcHeaderLen);
     preamble[rpcHeaderLen] = HConstants.RPC_CURRENT_VERSION;
     synchronized (this) {
-      preamble[rpcHeaderLen + 1] = authMethod.code;
+      preamble[rpcHeaderLen + 1] = provider.getAuthenticationCode();
     }
     return preamble;
   }
@@ -227,7 +175,7 @@ abstract class RpcConnection {
     ConnectionHeader.Builder builder = ConnectionHeader.newBuilder();
     builder.setServiceName(remoteId.getServiceName());
     UserInformation userInfoPB;
-    if ((userInfoPB = getUserInfo(remoteId.ticket.getUGI())) != null) {
+    if ((userInfoPB = provider.getUserInfo(remoteId.ticket.getUGI())) != null) {
       builder.setUserInfo(userInfoPB);
     }
     if (this.codec != null) {

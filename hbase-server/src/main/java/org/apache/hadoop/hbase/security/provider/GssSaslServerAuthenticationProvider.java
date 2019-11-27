@@ -104,4 +104,17 @@ public class GssSaslServerAuthenticationProvider extends GssSaslClientAuthentica
       }
     }
   }
+
+  @Override
+  public boolean supportsProtocolAuthentication() {
+    return true;
+  }
+
+  @Override
+  public UserGroupInformation getAuthorizedUgi(String authzId, SecretManager<TokenIdentifier> secretManager)
+      throws IOException {
+    UserGroupInformation ugi = UserGroupInformation.createRemoteUser(authzId);
+    ugi.setAuthenticationMethod(getAuthMethod());
+    return ugi;
+  }
 }

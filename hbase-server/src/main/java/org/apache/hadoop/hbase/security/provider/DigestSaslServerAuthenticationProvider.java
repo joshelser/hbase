@@ -102,4 +102,24 @@ public class DigestSaslServerAuthenticationProvider extends DigestSaslClientAuth
       }
     }
   }
+
+  @Override
+  public boolean supportsProtocolAuthentication() {
+    return false;
+  }
+
+  @Override
+  public UserGroupInformation getAuthorizedUgi(String authzId,
+      SecretManager<TokenIdentifier> secretManager) throws IOException {
+    UserGroupInformation authorizedUgi;
+    TokenIdentifier tokenId = HBaseSaslRpcServer.getIdentifier(authzId, secretManager);
+    authorizedUgi = tokenId.getUser();
+    if (authorizedUgi == null) {
+      throw new AccessDeniedException(
+          "Can't retrieve username from tokenIdentifier.");
+    }
+    authorizedUgi.addTokenIdentifier(tokenId);
+    authorizedUgi.setAuthenticationMethod(getAuthMethod());
+    return authorizedUgi;
+  }
 }

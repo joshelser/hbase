@@ -27,6 +27,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseInterfaceAudience;
 import org.apache.hadoop.hbase.security.AuthMethod;
 import org.apache.hadoop.hbase.security.SaslUtil;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.RPCProtos.UserInformation;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.UserGroupInformation.AuthenticationMethod;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
@@ -71,7 +73,15 @@ public class GssSaslClientAuthenticationProvider extends AbstractSaslClientAuthe
   }
 
   @Override
-  public AuthMethod getHBaseAuthMethod() {
-    return AUTH_METHOD;
+  public UserInformation getUserInfo(UserGroupInformation user) {
+    UserInformation.Builder userInfoPB = UserInformation.newBuilder();
+    // Send effective user for Kerberos auth
+    userInfoPB.setEffectiveUser(user.getUserName());
+    return userInfoPB.build();
+  }
+
+  @Override
+  public boolean isKerberos() {
+    return true;
   }
 }

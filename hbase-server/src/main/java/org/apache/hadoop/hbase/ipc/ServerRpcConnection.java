@@ -52,6 +52,7 @@ import org.apache.hadoop.hbase.security.SaslUtil;
 import org.apache.hadoop.hbase.security.User;
 import org.apache.hadoop.hbase.security.provider.SaslServerAuthenticationProvider;
 import org.apache.hadoop.hbase.security.provider.SaslServerAuthenticationProviders;
+import org.apache.hadoop.hbase.security.provider.SimpleSaslServerAuthenticationProvider;
 import org.apache.hbase.thirdparty.com.google.protobuf.BlockingService;
 import org.apache.hbase.thirdparty.com.google.protobuf.ByteInput;
 import org.apache.hbase.thirdparty.com.google.protobuf.ByteString;
@@ -69,7 +70,6 @@ import org.apache.hadoop.hbase.shaded.protobuf.generated.RPCProtos.ResponseHeade
 import org.apache.hadoop.hbase.shaded.protobuf.generated.RPCProtos.UserInformation;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.io.BytesWritable;
-import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableUtils;
 import org.apache.hadoop.io.compress.CompressionCodec;
@@ -78,7 +78,6 @@ import org.apache.hadoop.security.UserGroupInformation.AuthenticationMethod;
 import org.apache.hadoop.security.authorize.AuthorizationException;
 import org.apache.hadoop.security.authorize.ProxyUsers;
 import org.apache.hadoop.security.token.SecretManager.InvalidToken;
-import org.apache.hadoop.security.token.TokenIdentifier;
 
 /** Reads calls from a connection and queues them for handling. */
 @edu.umd.cs.findbugs.annotations.SuppressWarnings(
@@ -111,7 +110,7 @@ abstract class ServerRpcConnection implements Closeable {
   protected BlockingService service;
 
   protected SaslServerAuthenticationProvider provider;
-  protected AuthMethod authMethod;
+//  protected AuthMethod authMethod;
   protected boolean saslContextEstablished;
   protected boolean skipInitialSaslHandshake;
   private ByteBuffer unwrappedData;
@@ -165,26 +164,7 @@ abstract class ServerRpcConnection implements Closeable {
   private String getFatalConnectionString(final int version, final byte authByte) {
     return "serverVersion=" + RpcServer.CURRENT_VERSION +
     ", clientVersion=" + version + ", authMethod=" + authByte +
-    ", authSupported=" + (authMethod != null) + " from " + toString();
-  }
-
-  private UserGroupInformation getAuthorizedUgi(String authorizedId)
-      throws IOException {
-    UserGroupInformation authorizedUgi;
-    if (authMethod == AuthMethod.DIGEST) {
-      TokenIdentifier tokenId = HBaseSaslRpcServer.getIdentifier(authorizedId,
-          this.rpcServer.secretManager);
-      authorizedUgi = tokenId.getUser();
-      if (authorizedUgi == null) {
-        throw new AccessDeniedException(
-            "Can't retrieve username from tokenIdentifier.");
-      }
-      authorizedUgi.addTokenIdentifier(tokenId);
-    } else {
-      authorizedUgi = UserGroupInformation.createRemoteUser(authorizedId);
-    }
-    authorizedUgi.setAuthenticationMethod(authMethod.authenticationMethod.getAuthMethod());
-    return authorizedUgi;
+    ", authName=" + provider.getAuthenticationName() + " from " + toString();
   }
 
   /**
@@ -369,7 +349,7 @@ abstract class ServerRpcConnection implements Closeable {
           saslServer =
               new HBaseSaslRpcServer(provider, rpcServer.saslProps, rpcServer.secretManager);
           RpcServer.LOG.debug("Created SASL server with mechanism={}",
-              authMethod.getMechanismName());
+              provider.getAuthMethod());
         }
         RpcServer.LOG.debug("Read input token of size={} for processing by saslServer." +
             "evaluateResponse()", saslToken.limit());
@@ -405,7 +385,7 @@ abstract class ServerRpcConnection implements Closeable {
       if (saslServer.isComplete()) {
         String qop = saslServer.getNegotiatedQop();
         useWrap = qop != null && !"auth".equalsIgnoreCase(qop);
-        ugi = getAuthorizedUgi(saslServer.getAuthorizationID());
+        ugi = provider.getAuthorizedUgi(saslServer.getAuthorizationID(), this.rpcServer.secretManager);
         if (RpcServer.LOG.isDebugEnabled()) {
           RpcServer.LOG.debug("SASL server context established. Authenticated client: " + ugi +
               ". Negotiated QoP is " + qop);
@@ -478,7 +458,7 @@ abstract class ServerRpcConnection implements Closeable {
       // authorize real user. doAs is allowed only for simple or kerberos
       // authentication
       if (ugi != null && ugi.getRealUser() != null
-          && (authMethod != AuthMethod.DIGEST)) {
+          && provider.supportsProtocolAuthentication()) {
         ProxyUsers.authorize(ugi, this.getHostAddress(), this.rpcServer.conf);
       }
       this.rpcServer.authorize(ugi, connectionHeader, getHostInetAddress());
@@ -526,13 +506,13 @@ abstract class ServerRpcConnection implements Closeable {
       }
     } else {
       // user is authenticated
-      ugi.setAuthenticationMethod(authMethod.authenticationMethod);
+      ugi.setAuthenticationMethod(provider.getAuthMethod());
       //Now we check if this is a proxy user case. If the protocol user is
       //different from the 'user', it is a proxy user scenario. However,
       //this is not allowed if user authenticated with DIGEST.
       if ((protocolUser != null)
           && (!protocolUser.getUserName().equals(ugi.getUserName()))) {
-        if (authMethod == AuthMethod.DIGEST) {
+        if (!provider.supportsProtocolAuthentication()) {
           // Not allowed to doAs if token authentication is used
           throw new AccessDeniedException("Authenticated user (" + ugi
               + ") doesn't match what the client claims to be ("
@@ -758,13 +738,14 @@ abstract class ServerRpcConnection implements Closeable {
       doBadPreambleHandling(msg, new BadAuthException(msg));
       return false;
     }
-    this.authMethod = provider.getHBaseAuthMethod();
-    if (authMethod == null) {
-      String msg = getFatalConnectionString(version, authbyte);
-      doBadPreambleHandling(msg, new BadAuthException(msg));
-      return false;
-    }
-    if (this.rpcServer.isSecurityEnabled && authMethod == AuthMethod.SIMPLE) {
+//    this.authMethod = provider.getHBaseAuthMethod();
+//    if (authMethod == null) {
+//      String msg = getFatalConnectionString(version, authbyte);
+//      doBadPreambleHandling(msg, new BadAuthException(msg));
+//      return false;
+//    }
+    // TODO this is a wart while simple auth'n doesn't go through sasl.
+    if (this.rpcServer.isSecurityEnabled && provider instanceof SimpleSaslServerAuthenticationProvider) {
       if (this.rpcServer.allowFallbackToSimpleAuth) {
         this.rpcServer.metrics.authenticationFallback();
         authenticatedWithFallback = true;
@@ -774,18 +755,17 @@ abstract class ServerRpcConnection implements Closeable {
         return false;
       }
     }
-    if (!this.rpcServer.isSecurityEnabled && authMethod != AuthMethod.SIMPLE) {
-      doRawSaslReply(SaslStatus.SUCCESS, new IntWritable(SaslUtil.SWITCH_TO_SIMPLE_AUTH), null,
-        null);
-      authMethod = AuthMethod.SIMPLE;
-      // client has already sent the initial Sasl message and we
-      // should ignore it. Both client and server should fall back
-      // to simple auth from now on.
-      skipInitialSaslHandshake = true;
-    }
-    if (authMethod != AuthMethod.SIMPLE) {
-      useSasl = true;
-    }
+    // TODO can we remove this fallback? Is this even a good idea?
+//    if (!this.rpcServer.isSecurityEnabled && authMethod != AuthMethod.SIMPLE) {
+//      doRawSaslReply(SaslStatus.SUCCESS, new IntWritable(SaslUtil.SWITCH_TO_SIMPLE_AUTH), null,
+//        null);
+//      authMethod = AuthMethod.SIMPLE;
+//      // client has already sent the initial Sasl message and we
+//      // should ignore it. Both client and server should fall back
+//      // to simple auth from now on.
+//      skipInitialSaslHandshake = true;
+//    }
+    useSasl = !(provider instanceof SimpleSaslServerAuthenticationProvider);
     return true;
   }
 

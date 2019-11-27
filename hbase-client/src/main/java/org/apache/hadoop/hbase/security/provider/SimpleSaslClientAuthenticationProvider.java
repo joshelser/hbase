@@ -25,6 +25,8 @@ import javax.security.sasl.SaslClient;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseInterfaceAudience;
 import org.apache.hadoop.hbase.security.AuthMethod;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.RPCProtos.UserInformation;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.UserGroupInformation.AuthenticationMethod;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
@@ -63,7 +65,18 @@ public class SimpleSaslClientAuthenticationProvider extends AbstractSaslClientAu
   }
 
   @Override
-  public AuthMethod getHBaseAuthMethod() {
-    return AuthMethod.SIMPLE;
+  public UserInformation getUserInfo(UserGroupInformation user) {
+    UserInformation.Builder userInfoPB = UserInformation.newBuilder();
+    // Send both effective user and real user for simple auth
+    userInfoPB.setEffectiveUser(user.getUserName());
+    if (user.getRealUser() != null) {
+      userInfoPB.setRealUser(user.getRealUser().getUserName());
+    }
+    return userInfoPB.build();
+  }
+
+  @Override
+  public boolean isKerberos() {
+    return false;
   }
 }

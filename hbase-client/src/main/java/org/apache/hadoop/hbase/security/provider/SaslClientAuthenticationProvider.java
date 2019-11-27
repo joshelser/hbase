@@ -8,7 +8,9 @@ import javax.security.sasl.SaslClient;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseInterfaceAudience;
 import org.apache.hadoop.hbase.security.AuthMethod;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.RPCProtos.UserInformation;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.UserGroupInformation.AuthenticationMethod;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.security.token.TokenIdentifier;
@@ -59,8 +61,9 @@ public interface SaslClientAuthenticationProvider {
    */
   Text getTokenKind();
 
-  /**
-   * Stopgap. REMOVE_ME
-   */
-  AuthMethod getHBaseAuthMethod();
+  UserInformation getUserInfo(UserGroupInformation user);
+
+  boolean isKerberos();
+
+  UserGroupInformation unwrapUgi(UserGroupInformation ugi);
 }
