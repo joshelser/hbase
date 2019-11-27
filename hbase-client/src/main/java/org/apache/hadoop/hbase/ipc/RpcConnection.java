@@ -95,9 +95,9 @@ abstract class RpcConnection {
     SecurityInfo securityInfo = SecurityInfo.getInfo(remoteId.getServiceName());
     this.useSasl = isSecurityEnabled;
     String serverPrincipal = null;
+    // Choose the correct Token and AuthenticationProvider for this client to use
+    SaslClientAuthenticationProviders providers = SaslClientAuthenticationProviders.getInstance(conf);
     if (useSasl && securityInfo != null) {
-      // Choose the correct Token and AuthenticationProvider for this client to use
-      SaslClientAuthenticationProviders providers = SaslClientAuthenticationProviders.getInstance(conf);
       Pair<SaslClientAuthenticationProvider, Token<? extends TokenIdentifier>> pair =
           providers.selectProvider(new Text(clusterId), ticket);
       if (pair == null) {
@@ -119,6 +119,8 @@ abstract class RpcConnection {
             + " is " + serverPrincipal);
       }
     } else if (!useSasl) {
+      // Hack, while SIMPLE doesn't go via SASL.
+      provider = providers.getSimpleProvider();
       this.token = null;
     } else {
       throw new RuntimeException("Could not compute valid client authentication provider");

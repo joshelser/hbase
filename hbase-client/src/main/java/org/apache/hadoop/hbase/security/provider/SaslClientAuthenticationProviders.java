@@ -18,6 +18,7 @@
 package org.apache.hadoop.hbase.security.provider;
 
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -170,6 +171,13 @@ public class SaslClientAuthenticationProviders {
       LOG.trace("Found SaslClientAuthenticationProviders {}", loadedProviders);
     }
     return new SaslClientAuthenticationProviders(providers, selector);
+  }
+
+  public SaslClientAuthenticationProvider getSimpleProvider() {
+    Optional<SaslClientAuthenticationProvider> optional = providers.stream()
+        .filter((p) -> p instanceof SimpleSaslClientAuthenticationProvider)
+        .findFirst();
+    return optional.get();
   }
  
   public Pair<SaslClientAuthenticationProvider, Token<? extends TokenIdentifier>> selectProvider(
