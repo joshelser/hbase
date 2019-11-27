@@ -35,6 +35,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
+import org.apache.hadoop.hbase.HBaseClassTestRule;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.LocalHBaseCluster;
@@ -60,6 +61,8 @@ import org.apache.hadoop.hbase.security.SaslUtil;
 import org.apache.hadoop.hbase.security.token.SecureTestCluster;
 import org.apache.hadoop.hbase.security.token.TokenProvider;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.RPCProtos.UserInformation;
+import org.apache.hadoop.hbase.testclassification.MediumTests;
+import org.apache.hadoop.hbase.testclassification.SecurityTests;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.FSUtils;
 import org.apache.hadoop.hbase.util.Pair;
@@ -75,8 +78,10 @@ import org.apache.hadoop.security.token.TokenIdentifier;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TestName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -87,8 +92,13 @@ import org.slf4j.LoggerFactory;
  * This tests holds a "user database" in memory as a hashmap. Clients provide their password
  * in the client Hadoop configuration. The servers validate this password via the "user database".
  */
+@Category({MediumTests.class, SecurityTests.class})
 public class TestCustomSaslAuthenticationProvider {
   private static final Logger LOG = LoggerFactory.getLogger(TestCustomSaslAuthenticationProvider.class);
+
+  @ClassRule
+  public static final HBaseClassTestRule CLASS_RULE =
+      HBaseClassTestRule.forClass(TestCustomSaslAuthenticationProvider.class);
 
   private static final Map<String,String> USER_DATABASE = createUserDatabase();
 
@@ -497,7 +507,7 @@ public class TestCustomSaslAuthenticationProvider {
       @Override public Void run() throws Exception {
         try (Connection conn = ConnectionFactory.createConnection(clientConf);
             Table t = conn.getTable(tableName)) {
-          Result r = t.get(new Get(Bytes.toBytes("r1")));
+          t.get(new Get(Bytes.toBytes("r1")));
           fail("Should not successfully authenticate with HBase");
           return null;
         }
